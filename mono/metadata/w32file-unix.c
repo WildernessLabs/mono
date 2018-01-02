@@ -23,7 +23,9 @@
 #endif
 #include <sys/types.h>
 #include <stdio.h>
+#ifdef HAVE_UTIME_H
 #include <utime.h>
+#endif
 #ifdef __linux__
 #include <sys/ioctl.h>
 #include <linux/fs.h>
@@ -327,7 +329,11 @@ _wapi_chmod (const gchar *pathname, mode_t mode)
 	gint ret;
 
 	MONO_ENTER_GC_SAFE;
+#if defined(HAVE_CHMOD)
 	ret = chmod (pathname, mode);
+#else
+	ret = -1;
+#endif
 	MONO_EXIT_GC_SAFE;
 	if (ret == -1 && (errno == ENOENT || errno == ENOTDIR) && IS_PORTABILITY_SET) {
 		gint saved_errno = errno;
@@ -339,7 +345,11 @@ _wapi_chmod (const gchar *pathname, mode_t mode)
 		}
 
 		MONO_ENTER_GC_SAFE;
+#if defined(HAVE_CHMOD)
 		ret = chmod (located_filename, mode);
+#else
+		ret = -1;
+#endif
 		MONO_EXIT_GC_SAFE;
 		g_free (located_filename);
 	}

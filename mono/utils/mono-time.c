@@ -127,7 +127,7 @@ get_boot_time (void)
 
 	if (sysctl(mib, 2, &boottime, &size, NULL, 0) != -1)
 		return (gint64)((now - boottime.tv_sec) * MTICKS_PER_SEC);
-#else
+#elif defined(HOST_LINUX)
 	FILE *uptime = fopen ("/proc/uptime", "r");
 	if (uptime) {
 		double upt;

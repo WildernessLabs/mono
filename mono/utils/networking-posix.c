@@ -226,6 +226,7 @@ mono_get_local_interfaces (int family, int *interface_count)
 			continue;
 		}
 
+#if defined(HAVE_IFF_LOOPBACK)
 		//If we have a non-loopback iface, don't return any loopback
 		if ((iflags.ifr_flags & IFF_LOOPBACK) == 0) {
 			ignore_loopback = TRUE;
@@ -233,6 +234,7 @@ mono_get_local_interfaces (int family, int *interface_count)
 		} else {
 			ifr->ifr_name [0] = 2; //2 means loopback
 		}
+#endif
 		++if_count;
 	}
 
@@ -291,9 +293,11 @@ mono_get_local_interfaces (int family, int *interface_count)
 		if ((cur->ifa_flags & IFF_UP) == 0)
 			continue;
 
+#if defined(HAVE_IFF_LOOPBACK)
 		//If we have a non-loopback iface, don't return any loopback
 		if ((cur->ifa_flags & IFF_LOOPBACK) == 0)
 			ignore_loopback = TRUE;
+#endif
 
 		if_count++;
 	}
@@ -307,11 +311,13 @@ mono_get_local_interfaces (int family, int *interface_count)
 		if ((cur->ifa_flags & IFF_UP) == 0)
 			continue;
 
+#if defined(HAVE_IFF_LOOPBACK)
 		//we decrement if_count because it did not on the previous loop.
 		if (ignore_loopback && (cur->ifa_flags & IFF_LOOPBACK)) {
 			--if_count;
 			continue;
 		}
+#endif
 
 		memcpy (result_ptr, get_address_from_sockaddr (cur->ifa_addr), mono_address_size_for_family (family));
 		result_ptr += mono_address_size_for_family (family);

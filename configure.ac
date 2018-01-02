@@ -2561,7 +2561,8 @@ if test x$host_win32 = xno; then
 		if test $ac_cv_var_timezone = yes; then
 			AC_DEFINE(HAVE_TIMEZONE, 1, [Have timezone variable])
 		else
-			AC_ERROR(unable to find a way to determine timezone)
+			AC_DEFINE(HAVE_NO_TIMEZONE, 1, [Timezone information unavailable])
+			AC_WARNING(unable to find a way to determine timezone)
 		fi
 	fi
 
@@ -4080,6 +4081,14 @@ case "$host" in
 		TARGET=ARM;
 		arch_target=arm;
 		ACCESS_UNALIGNED="no"
+		CPPFLAGS="$CPPFLAGS -D__ARM_EABI__"
+		;;
+	arm*-none*)
+		TARGET=ARM;
+		arch_target=arm;
+		ACCESS_UNALIGNED="no"
+		AOT_SUPPORTED="yes"
+		AC_DEFINE(HOST_NO_SYMLINKS,1,[This platform does not support symlinks])
 		CPPFLAGS="$CPPFLAGS -D__ARM_EABI__"
 		;;
 	arm*-linux*)

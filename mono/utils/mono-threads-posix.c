@@ -38,7 +38,9 @@ extern int tkill (pid_t tid, int signal);
 
 #include <pthread.h>
 
+#if defined(HAVE_SYS_RESOURCE_H)
 #include <sys/resource.h>
+#endif
 
 gboolean
 mono_thread_platform_create_thread (MonoThreadStart thread_fn, gpointer thread_data, gsize* const stack_size, MonoNativeThreadId *tid)
@@ -131,6 +133,7 @@ mono_threads_platform_exit (gsize exit_code)
 int
 ves_icall_System_Threading_Thread_SystemMaxStackSize (MonoError *error)
 {
+#if defined(HAVE_STRUCT_RLIMIT)
 	struct rlimit lim;
 
 	/* If getrlimit fails, we don't enforce any limits. */
@@ -140,6 +143,9 @@ ves_icall_System_Threading_Thread_SystemMaxStackSize (MonoError *error)
 	if (lim.rlim_max > (rlim_t)INT_MAX)
 		return INT_MAX;
 	return (int)lim.rlim_max;
+#else
+	return INT_MAX;
+#endif
 }
 
 int
