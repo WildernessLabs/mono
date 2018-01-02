@@ -65,7 +65,7 @@
  */
 static size_t mono_sysconf (int name)
 {
-#ifdef HAVE_GETEUID
+#ifdef HAVE_SYSCONF
 	size_t size = (size_t) sysconf (name);
 	/* default value */
 	return (size == -1) ? MONO_SYSCONF_DEFAULT_SIZE : size;

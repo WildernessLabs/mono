@@ -119,7 +119,6 @@ g_iconv_open (const char *to_charset, const char *from_charset)
 	
 	if (!to_charset || !from_charset || !to_charset[0] || !from_charset[0]) {
 		SET_ERRNO(EINVAL)
-		
 		return (GIConv) -1;
 	}
 	
@@ -137,7 +136,7 @@ g_iconv_open (const char *to_charset, const char *from_charset)
 			return (GIConv) -1;
 #else
 		SET_ERRNO(EINVAL)
-		
+
 		return (GIConv) -1;
 #endif
 	}

@@ -3169,7 +3169,6 @@ map_pe_file (gunichar2 *filename, gint32 *map_size, void **handle)
 		located_filename = mono_portability_find_file (filename_ext, TRUE);
 		if (!located_filename) {
 			SET_ERRNO(saved_errno)
-
 			mono_trace (G_LOG_LEVEL_DEBUG, MONO_TRACE_IO_LAYER_PROCESS, "%s: Error opening file %s (1): %s", __func__, filename_ext, strerror (errno));
 			goto error;
 		}

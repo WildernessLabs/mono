@@ -1768,6 +1768,7 @@ mono_test_last_error (int err)
 #else
 	SET_ERRNO(err);
 #endif
+#endif
 }
 
 LIBTEST_API int STDCALL 

@@ -6781,9 +6781,9 @@ mono_icall_get_machine_name (MonoError *error)
 		}
 		result = mono_string_new_handle (mono_domain_get (), buf, error);
 	} else
-#endif
+#else
 		result = MONO_HANDLE_CAST (MonoString, NULL_HANDLE);
-
+#endif
 	g_free (buf);
 	
 	return result;
@@ -6933,14 +6933,17 @@ mono_icall_get_environment_variable_names (MonoError *error)
 
 	error_init (error);
 	n = 0;
+#if !defined(__NuttX__)
 	for (e = environ; *e != 0; ++ e)
 		++ n;
+#endif
 
 	domain = mono_domain_get ();
 	names = mono_array_new_checked (domain, mono_defaults.string_class, n, error);
 	return_val_if_nok (error, NULL);
 
 	n = 0;
+#if !defined(__NuttX__)
 	for (e = environ; *e != 0; ++ e) {
 		parts = g_strsplit (*e, "=", 2);
 		if (*parts != 0) {
@@ -6956,6 +6959,7 @@ mono_icall_get_environment_variable_names (MonoError *error)
 
 		++ n;
 	}
+#endif
 
 	return names;
 }

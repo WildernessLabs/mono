@@ -127,6 +127,88 @@ ves_icall_System_IO_FAMW_InternalFAMNextEvent (gpointer conn,
 }
 #endif
 
+#ifndef HAVE_SYS_INOTIFY_H
+int ves_icall_System_IO_InotifyWatcher_GetInotifyInstance ()
+{
+	return -1;
+}
+
+int ves_icall_System_IO_InotifyWatcher_AddWatch (int fd, MonoString *directory, gint32 mask)
+{
+	return -1;
+}
+
+int ves_icall_System_IO_InotifyWatcher_RemoveWatch (int fd, gint32 watch_descriptor)
+{
+	return -1;
+}
+#else
+#include <sys/inotify.h>
+#include <errno.h>
+
+int
+ves_icall_System_IO_InotifyWatcher_GetInotifyInstance ()
+{
+	return inotify_init ();
+}
+
+int
+ves_icall_System_IO_InotifyWatcher_AddWatch (int fd, MonoString *name, gint32 mask)
+{
+	ERROR_DECL (error);
+	char *str, *path;
+	int retval;
+
+	if (name == NULL)
+		return -1;
+
+	str = mono_string_to_utf8_checked (name, error);
+	if (mono_error_set_pending_exception (error))
+		return -1;
+	path = mono_portability_find_file (str, TRUE);
+	if (!path)
+		path = str;
+
+	retval = inotify_add_watch (fd, path, mask);
+	if (retval < 0) {
+		switch (errno) {
+		case EACCES:
+			SET_ERRNO(ERROR_ACCESS_DENIED);
+			break;
+		case EBADF:
+			SET_ERRNO(ERROR_INVALID_HANDLE);
+			break;
+		case EFAULT:
+			SET_ERRNO(ERROR_INVALID_ACCESS);
+			break;
+		case EINVAL:
+			SET_ERRNO(ERROR_INVALID_DATA);
+			break;
+		case ENOMEM:
+			SET_ERRNO(ERROR_NOT_ENOUGH_MEMORY);
+			break;
+		case ENOSPC:
+			SET_ERRNO(ERROR_TOO_MANY_OPEN_FILES);
+			break;
+		default:
+			SET_ERRNO(ERROR_GEN_FAILURE);
+			break;
+		}
+		mono_marshal_set_last_error ();
+	}
+	if (path != str)
+		g_free (path);
+	g_free (str);
+	return retval;
+}
+
+int
+ves_icall_System_IO_InotifyWatcher_RemoveWatch (int fd, gint32 watch_descriptor)
+{
+	return inotify_rm_watch (fd, watch_descriptor);
+}
+#endif
+
 #if HAVE_KQUEUE
 
 static void

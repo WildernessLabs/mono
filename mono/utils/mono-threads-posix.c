@@ -133,6 +133,7 @@ mono_threads_platform_exit (gsize exit_code)
 int
 mono_thread_info_get_system_max_stack_size (void)
 {
+#if defined(HAVE_STRUCT_RLIMIT)
 	struct rlimit lim;
 
 	/* If getrlimit fails, we don't enforce any limits. */
@@ -142,6 +143,9 @@ mono_thread_info_get_system_max_stack_size (void)
 	if (lim.rlim_max > (rlim_t)INT_MAX)
 		return INT_MAX;
 	return (int)lim.rlim_max;
+#else
+	return INT_MAX;
+#endif
 }
 
 int

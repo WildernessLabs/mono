@@ -94,7 +94,11 @@
 #endif
 
 #ifndef HOST_WIN32
+#if !defined(__NuttX__)
 #include <dlfcn.h>
+#else
+#include <dllfcn.h>
+#endif
 #endif
 
 /*

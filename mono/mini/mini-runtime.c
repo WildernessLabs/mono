@@ -3670,8 +3670,10 @@ static int vtable_trampolines_size;
 gpointer
 mini_get_vtable_trampoline (MonoVTable *vt, int slot_index)
 {
-	int index = slot_index + MONO_IMT_SIZE;
+	if (mono_use_interpreter) {
+		mono_class_setup_vtable (vt->klass);
 
+<<<<<<< HEAD
 	if (mono_llvm_only) {
 		if (slot_index < 0) {
 			/* Initialize the IMT trampoline to a 'trampoline' so the generated code doesn't have to initialize it */
@@ -3686,34 +3688,55 @@ mini_get_vtable_trampoline (MonoVTable *vt, int slot_index)
 			return ftndesc;
 		} else {
 			return NULL;
+=======
+		return NULL;
+	} else {
+		int index = slot_index + MONO_IMT_SIZE;
+
+		if (mono_llvm_only) {
+			if (slot_index < 0) {
+				/* Initialize the IMT trampoline to a 'trampoline' so the generated code doesn't have to initialize it */
+				// FIXME: Memory management
+				gpointer *ftndesc = g_malloc (2 * sizeof (gpointer));
+				IMTTrampInfo *info = g_new0 (IMTTrampInfo, 1);
+				info->vtable = vt;
+				info->slot = index;
+				ftndesc [0] = mini_llvmonly_initial_imt_tramp;
+				ftndesc [1] = info;
+				mono_memory_barrier ();
+				return ftndesc;
+			} else {
+				return NULL;
+			}
+>>>>>>> 0425b69afdc... flush wip port
 		}
-	}
 
-	g_assert (slot_index >= - MONO_IMT_SIZE);
-	if (!vtable_trampolines || slot_index + MONO_IMT_SIZE >= vtable_trampolines_size) {
-		mono_jit_lock ();
-		if (!vtable_trampolines || index >= vtable_trampolines_size) {
-			int new_size;
-			gpointer new_table;
+		g_assert (slot_index >= - MONO_IMT_SIZE);
+		if (!vtable_trampolines || slot_index + MONO_IMT_SIZE >= vtable_trampolines_size) {
+			mono_jit_lock ();
+			if (!vtable_trampolines || index >= vtable_trampolines_size) {
+				int new_size;
+				gpointer new_table;
 
-			new_size = vtable_trampolines_size ? vtable_trampolines_size * 2 : 128;
-			while (new_size <= index)
-				new_size *= 2;
-			new_table = g_new0 (gpointer, new_size);
+				new_size = vtable_trampolines_size ? vtable_trampolines_size * 2 : 128;
+				while (new_size <= index)
+					new_size *= 2;
+				new_table = g_new0 (gpointer, new_size);
 
-			if (vtable_trampolines)
-				memcpy (new_table, vtable_trampolines, vtable_trampolines_size * sizeof (gpointer));
-			g_free (vtable_trampolines);
-			mono_memory_barrier ();
-			vtable_trampolines = (void **)new_table;
-			vtable_trampolines_size = new_size;
+				if (vtable_trampolines)
+					memcpy (new_table, vtable_trampolines, vtable_trampolines_size * sizeof (gpointer));
+				g_free (vtable_trampolines);
+				mono_memory_barrier ();
+				vtable_trampolines = (void **)new_table;
+				vtable_trampolines_size = new_size;
+			}
+			mono_jit_unlock ();
 		}
-		mono_jit_unlock ();
-	}
 
-	if (!vtable_trampolines [index])
-		vtable_trampolines [index] = mono_create_specific_trampoline (GUINT_TO_POINTER (slot_index), MONO_TRAMPOLINE_VCALL, mono_get_root_domain (), NULL);
-	return vtable_trampolines [index];
+		if (!vtable_trampolines [index])
+			vtable_trampolines [index] = mono_create_specific_trampoline (GUINT_TO_POINTER (slot_index), MONO_TRAMPOLINE_VCALL, mono_get_root_domain (), NULL);
+		return vtable_trampolines [index];
+	}
 }
 
 static gpointer

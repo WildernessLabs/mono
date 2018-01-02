@@ -177,8 +177,10 @@ mono_pagesize (void)
 	// Prefer sysconf () as it's signal safe.
 #if defined (HAVE_SYSCONF) && defined (_SC_PAGESIZE)
 	saved_pagesize = sysconf (_SC_PAGESIZE);
-#else
+#elif defined(HAVE_GETPAGESIZE)
 	saved_pagesize = getpagesize ();
+#else
+	saved_pagesize = 0x1000;
 #endif
 
 	return saved_pagesize;
@@ -399,6 +401,9 @@ mono_file_unmap (void *addr, void *handle)
 int
 mono_mprotect (void *addr, size_t length, int flags)
 {
+#if defined(__NuttX__)
+	return 0;
+#else
 	int prot = prot_from_flags (flags);
 
 	if (flags & MONO_MMAP_DISCARD) {
@@ -418,6 +423,7 @@ mono_mprotect (void *addr, size_t length, int flags)
 #endif
 	}
 	return mprotect (addr, length, prot);
+#endif
 }
 
 #else
@@ -446,8 +452,15 @@ void*
 mono_valloc_aligned (size_t size, size_t alignment, int flags, MonoMemAccountType type)
 {
 	void *res = NULL;
+#if defined(__NuttX__)
+	res = memalign (alignment, size);
+#else
 	if (posix_memalign (&res, alignment, size))
 		return NULL;
+#endif
+
+	if (!res)
+		g_error("memalign returned null -- out of memory?");
 
 	memset (res, 0, size);
 	return res;

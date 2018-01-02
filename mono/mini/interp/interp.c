@@ -2501,14 +2501,15 @@ interp_create_method_pointer (MonoMethod *method, gboolean compile, MonoError *e
 			mono_native_to_interp_trampoline = (MonoFuncV)mono_aot_get_trampoline ("native_to_interp_trampoline");
 		} else {
 			MonoTrampInfo *info;
-			mono_native_to_interp_trampoline = (MonoFuncV)mono_arch_get_native_to_interp_trampoline (&info);
-			mono_tramp_info_register (info, NULL);
+			mono_native_to_interp_trampoline = mono_arch_get_native_to_interp_trampoline (&info);
+			//mono_tramp_info_register (info, NULL);
 		}
 	}
 	entry_wrapper = (gpointer)mono_native_to_interp_trampoline;
 	/* We need the lmf wrapper only when being called from mixed mode */
-	if (sig->pinvoke)
-		entry_func = (gpointer)interp_entry_from_trampoline;
+/* MEADOW FIXME */
+	if (sig->pinvoke || 1)
+		entry_func = interp_entry_from_trampoline;
 	else
 		entry_func = mono_jit_compile_method_jit_only (mini_get_interp_lmf_wrapper (), error);
 #endif

@@ -422,6 +422,15 @@ case "$host" in
 		dnl ppc Linux is the same? test further
 		disable_munmap=yes
 		;;
+	arm-none-eabi*)
+		libdl=
+		AC_DEFINE(PTHREAD_POINTER_ID)
+		with_tls=pthread
+		support_boehm=no
+		use_sigposix=yes
+		mono_cv_uscore=yes
+		ac_cv_func_mkstemp=yes
+		;;
 	*)
 		AC_MSG_WARN([*** Please add $host to configure.ac checks!])
 		libdl="-ldl"
@@ -541,7 +550,7 @@ AC_SUBST(export_ldflags)
 AC_PROG_LD
 AC_PROG_LD_GNU
 
-AC_CHECK_HEADERS(sys/filio.h sys/sockio.h netdb.h utime.h sys/utime.h semaphore.h sys/un.h linux/rtc.h sys/syscall.h sys/mkdev.h sys/uio.h sys/param.h sys/sysctl.h libproc.h sys/prctl.h copyfile.h)
+AC_CHECK_HEADERS(sys/filio.h sys/sockio.h netdb.h utime.h sys/utime.h semaphore.h sys/un.h linux/rtc.h sys/syscall.h sys/mkdev.h sys/uio.h sys/param.h sys/sysctl.h libproc.h sys/prctl.h copyfile.h dlfcn.h)
 AC_CHECK_HEADERS(sys/param.h sys/socket.h sys/ipc.h sys/utsname.h alloca.h ucontext.h pwd.h sys/select.h netinet/tcp.h netinet/in.h unistd.h sys/types.h link.h asm/sigcontext.h sys/inotify.h arpa/inet.h complex.h unwind.h)
 AC_CHECK_HEADERS([linux/netlink.h linux/rtnetlink.h],
                   [], [], [#include <stddef.h>
@@ -833,6 +842,7 @@ AC_SUBST([WERROR_CFLAGS])
 AC_SUBST([SHARED_CFLAGS])
 
 GLIB_CFLAGS='-I$(top_srcdir)/mono/eglib -I$(top_builddir)/mono/eglib'
+#GLIB_LIBS='$(top_builddir)/mono/eglib/libeglib.la'
   
 AC_SUBST(GLIB_CFLAGS)
 
@@ -1473,7 +1483,7 @@ fi
 AC_ARG_ENABLE(minimal, [  --enable-minimal=LIST      drop support for LIST subsystems.
      LIST is a comma-separated list from: aot, profiler, decimal, pinvoke, debug, appdomains, verifier, 
      reflection_emit, reflection_emit_save, large_code, logging, com, ssa, generics, attach, jit, interpreter, simd, soft_debug, perfcounters, normalization, desktop_loader, shared_perfcounters, remoting,
-	 security, lldb, mdb, assert_messages, sgen_marksweep_conc, sgen_split_nursery, sgen_gc_bridge, sgen_debug_helpers, sockets.],
+     security, lldb, mdb, assert_messages, sgen_marksweep_conc, sgen_split_nursery, sgen_gc_bridge, sgen_debug_helpers, sockets.],
 [
 	for feature in `echo "$enable_minimal" | sed -e "s/,/ /g"`; do
 		eval "mono_feature_disable_$feature='yes'"
@@ -2720,7 +2730,8 @@ if test x$host_win32 = xno; then
 		if test $ac_cv_var_timezone = yes; then
 			AC_DEFINE(HAVE_TIMEZONE, 1, [Have timezone variable])
 		else
-			AC_ERROR(unable to find a way to determine timezone)
+			AC_DEFINE(HAVE_NO_TIMEZONE, 1, [Timezone information unavailable])
+			AC_WARNING(unable to find a way to determine timezone)
 		fi
 	fi
 
@@ -4155,6 +4166,14 @@ case "$host" in
 		TARGET=ARM;
 		arch_target=arm;
 		ACCESS_UNALIGNED="no"
+		CPPFLAGS="$CPPFLAGS -D__ARM_EABI__"
+		;;
+	arm*-none*)
+		TARGET=ARM;
+		arch_target=arm;
+		ACCESS_UNALIGNED="no"
+		AOT_SUPPORTED="yes"
+		AC_DEFINE(HOST_NO_SYMLINKS,1,[This platform does not support symlinks])
 		CPPFLAGS="$CPPFLAGS -D__ARM_EABI__"
 		;;
 	arm*-linux*)
