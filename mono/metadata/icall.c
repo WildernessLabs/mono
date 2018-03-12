@@ -7501,7 +7501,6 @@ mono_icall_get_machine_name (MonoError *error)
 	} else
 #endif
 		result = MONO_HANDLE_CAST (MonoString, NULL_HANDLE);
-
 	g_free (buf);
 	
 	return result;
