@@ -1379,7 +1379,11 @@ MONO_SIGNAL_HANDLER_FUNC (static, mono_sigchld_signal_handler, (int _dummy, sigi
 
 	mono_gc_finalize_notify ();
 
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+	set_errno(old_errno);
+#else
 	errno = old_errno;
+#endif
 }
 
 static void
@@ -1485,7 +1489,11 @@ is_managed_binary (const char *filename)
 	 * probably wouldn't be able to open it anyway.
 	 */
 	if (file < 0) {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+		set_errno(original_errno);
+#else
 		errno = original_errno;
+#endif
 		return FALSE;
 	}
 
@@ -1588,7 +1596,11 @@ is_managed_binary (const char *filename)
 
 leave:
 	close (file);
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+	set_errno(original_errno);
+#else
 	errno = original_errno;
+#endif
 	return managed;
 }
 
@@ -2558,9 +2570,13 @@ ves_icall_Microsoft_Win32_NativeMethods_GetPriorityClass (gpointer handle, MonoE
 
 	pid = ((MonoW32HandleProcess*) handle_data->specific)->pid;
 
-	errno = 0;
-	res = getpriority (PRIO_PROCESS, pid);
-	if (res == -1 && errno != 0) {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+	set_errno( 0);
+#else
+	errno =  0;
+#endif
+	ret = getpriority (PRIO_PROCESS, pid);
+	if (ret == -1 && errno != 0) {
 		switch (errno) {
 		case EPERM:
 		case EACCES:
@@ -3049,7 +3065,11 @@ map_pe_file (gunichar2 *filename, gint32 *map_size, void **handle)
 
 		located_filename = mono_portability_find_file (filename_ext, TRUE);
 		if (!located_filename) {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+			set_errno(saved_errno);
+#else
 			errno = saved_errno;
+#endif
 
 			mono_trace (G_LOG_LEVEL_DEBUG, MONO_TRACE_IO_LAYER_PROCESS, "%s: Error opening file %s (1): %s", __func__, filename_ext, strerror (errno));
 			goto error;

@@ -182,7 +182,11 @@ terminal_get_dimensions (void)
 	
 	if (ioctl (STDIN_FILENO, TIOCGWINSZ, &ws) == 0){
 		ret = (ws.ws_col << 16) | ws.ws_row;
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+		set_errno(save_errno);
+#else
 		errno = save_errno;
+#endif
 		return ret;
 	} 
 	return -1;
@@ -257,7 +261,11 @@ MONO_SIG_HANDLER_FUNC (static, sigint_handler)
 	save_errno = errno;
 	need_cancel = TRUE;
 	mono_gc_finalize_notify ();
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+	set_errno(save_errno);
+#else
 	errno = save_errno;
+#endif
 	in_sigint = FALSE;
 }
 

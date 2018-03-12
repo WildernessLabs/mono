@@ -178,25 +178,53 @@ ves_icall_System_IO_InotifyWatcher_AddWatch (int fd, MonoString *name, gint32 ma
 	if (retval < 0) {
 		switch (errno) {
 		case EACCES:
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+			set_errno(ERROR_ACCESS_DENIED);
+#else
 			errno = ERROR_ACCESS_DENIED;
+#endif
 			break;
 		case EBADF:
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+			set_errno(ERROR_INVALID_HANDLE);
+#else
 			errno = ERROR_INVALID_HANDLE;
+#endif
 			break;
 		case EFAULT:
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+			set_errno(ERROR_INVALID_ACCESS);
+#else
 			errno = ERROR_INVALID_ACCESS;
+#endif
 			break;
 		case EINVAL:
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+			set_errno(ERROR_INVALID_DATA);
+#else
 			errno = ERROR_INVALID_DATA;
+#endif
 			break;
 		case ENOMEM:
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+			set_errno(ERROR_NOT_ENOUGH_MEMORY);
+#else
 			errno = ERROR_NOT_ENOUGH_MEMORY;
+#endif
 			break;
 		case ENOSPC:
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+			set_errno(ERROR_TOO_MANY_OPEN_FILES);
+#else
 			errno = ERROR_TOO_MANY_OPEN_FILES;
+#endif
 			break;
 		default:
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+			set_errno(ERROR_GEN_FAILURE);
+#else
 			errno = ERROR_GEN_FAILURE;
+#endif
 			break;
 		}
 		mono_marshal_set_last_error ();

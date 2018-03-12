@@ -112,7 +112,11 @@ g_mkdir_with_parents (const gchar *pathname, int mode)
 	int rv;
 	
 	if (!pathname || *pathname == '\0') {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+		set_errno(EINVAL);
+#else
 		errno = EINVAL;
+#endif
 		return -1;
 	}
 	

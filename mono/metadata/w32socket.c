@@ -33,7 +33,9 @@
 #include <sys/ioctl.h>
 #endif
 #include <netinet/in.h>
+#ifdef HAVE_NETINET_TCP_H
 #include <netinet/tcp.h>
+#endif
 #ifdef HAVE_NETDB_H
 #include <netdb.h>
 #endif
@@ -1328,7 +1330,11 @@ ves_icall_System_Net_Sockets_Socket_Poll_internal (gsize sock, gint mode,
 				timeout = 0;
 			}
 			
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+			set_errno(err);
+#else
 			errno = err;
+#endif
 		}
 
 		if (ret == -1 && errno == EINTR) {
@@ -1340,7 +1346,11 @@ ves_icall_System_Net_Sockets_Socket_Poll_internal (gsize sock, gint mode,
 			/* Suspend requested? */
 			mono_thread_interruption_checkpoint_void ();
 
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+			set_errno(EINTR);
+#else
 			errno = EINTR;
+#endif
 		}
 	} while (ret == -1 && errno == EINTR);
 
@@ -1822,7 +1832,11 @@ ves_icall_System_Net_Sockets_Socket_Select_internal (MonoArrayHandle sockets, gi
 			timeout -= sec * 1000;
 			if (timeout < 0)
 				timeout = 0;
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+			set_errno(err);
+#else
 			errno = err;
+#endif
 		}
 
 		if (ret == -1 && errno == EINTR) {
@@ -1835,7 +1849,11 @@ ves_icall_System_Net_Sockets_Socket_Select_internal (MonoArrayHandle sockets, gi
 			/* Suspend requested? */
 			mono_thread_interruption_checkpoint_void ();
 
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+			set_errno(EINTR);
+#else
 			errno = EINTR;
+#endif
 		}
 	} while (ret == -1 && errno == EINTR);
 	

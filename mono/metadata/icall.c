@@ -6608,11 +6608,14 @@ mono_icall_get_machine_name (MonoError *error)
 	n = 512;
 	buf = g_malloc (n+1);
 	
+#if HAVE_GETHOSTNAME
 	if (gethostname (buf, n) == 0){
 		buf [n] = 0;
 		result = mono_string_new_handle (mono_domain_get (), buf, error);
 	} else
+#else
 		result = MONO_HANDLE_CAST (MonoString, NULL_HANDLE);
+#endif
 	g_free (buf);
 	
 	return result;

@@ -41,7 +41,7 @@ G_BEGIN_DECLS
 
 #if !defined(HOST_WIN32)
 
-#if !defined(CLOCK_MONOTONIC) || defined(HOST_DARWIN) || defined(HOST_ANDROID) || defined(HOST_WASM)
+#if !defined(CLOCK_MONOTONIC) || defined(HOST_DARWIN) || defined(HOST_ANDROID) || defined(HOST_WASM) || defined(__NuttX__)
 #define BROKEN_CLOCK_SOURCE
 #endif
 

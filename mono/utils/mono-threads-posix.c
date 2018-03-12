@@ -162,7 +162,11 @@ mono_threads_pthread_kill (MonoThreadInfo *info, int signum)
 
 	if (result < 0) {
 		result = errno;
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+		set_errno(old_errno);
+#else
 		errno = old_errno;
+#endif
 	}
 #elif defined (HAVE_PTHREAD_KILL)
 	result = pthread_kill (mono_thread_info_get_tid (info), signum);

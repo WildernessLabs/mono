@@ -121,7 +121,11 @@ g_iconv_open (const char *to_charset, const char *from_charset)
 	guint i;
 	
 	if (!to_charset || !from_charset || !to_charset[0] || !from_charset[0]) {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+		set_errno(EINVAL);
+#else
 		errno = EINVAL;
+#endif
 		
 		return (GIConv) -1;
 	}
@@ -139,7 +143,11 @@ g_iconv_open (const char *to_charset, const char *from_charset)
 		if ((icd = iconv_open (to_charset, from_charset)) == (iconv_t) -1)
 			return (GIConv) -1;
 #else
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+		set_errno(EINVAL);
+#else
 		errno = EINVAL;
+#endif
 		
 		return (GIConv) -1;
 #endif
@@ -269,17 +277,29 @@ decode_utf32_endian (char *inbuf, size_t inleft, gunichar *outchar, unsigned end
 	gunichar c;
 	
 	if (inleft < 4) {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+		set_errno(EINVAL);
+#else
 		errno = EINVAL;
+#endif
 		return -1;
 	}
 	
 	c = read_uint32_endian (inptr, endian);
 	
 	if (c >= 0xd800 && c < 0xe000) {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+		set_errno(EILSEQ);
+#else
 		errno = EILSEQ;
+#endif
 		return -1;
 	} else if (c >= 0x110000) {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+		set_errno(EILSEQ);
+#else
 		errno = EILSEQ;
+#endif
 		return -1;
 	}
 	
@@ -306,7 +326,11 @@ encode_utf32be (gunichar c, char *outbuf, size_t outleft)
 	unsigned char *outptr = (unsigned char *) outbuf;
 	
 	if (outleft < 4) {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+		set_errno(E2BIG);
+#else
 		errno = E2BIG;
+#endif
 		return -1;
 	}
 	
@@ -324,7 +348,11 @@ encode_utf32le (gunichar c, char *outbuf, size_t outleft)
 	unsigned char *outptr = (unsigned char *) outbuf;
 	
 	if (outleft < 4) {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+		set_errno(E2BIG);
+#else
 		errno = E2BIG;
+#endif
 		return -1;
 	}
 	
@@ -352,7 +380,11 @@ decode_utf16_endian (char *inbuf, size_t inleft, gunichar *outchar, unsigned end
 	gunichar u;
 	
 	if (inleft < 2) {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+		set_errno(EINVAL);
+#else
 		errno = EINVAL;
+#endif
 		return -1;
 	}
 	
@@ -365,14 +397,22 @@ decode_utf16_endian (char *inbuf, size_t inleft, gunichar *outchar, unsigned end
 	} else if (u < 0xdc00) {
 		/* 0xd800 -> 0xdbff */
 		if (inleft < 4) {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+			set_errno(EINVAL);
+#else
 			errno = EINVAL;
+#endif
 			return -2;
 		}
 		
 		c = read_uint16_endian (inptr + 2, endian);
 		
 		if (c < 0xdc00 || c > 0xdfff) {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+			set_errno(EILSEQ);
+#else
 			errno = EILSEQ;
+#endif
 			return -2;
 		}
 		
@@ -382,7 +422,11 @@ decode_utf16_endian (char *inbuf, size_t inleft, gunichar *outchar, unsigned end
 		return 4;
 	} else if (u < 0xe000) {
 		/* 0xdc00 -> 0xdfff */
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+		set_errno(EILSEQ);
+#else
 		errno = EILSEQ;
+#endif
 		return -1;
 	} else {
 		/* 0xe000 -> 0xffff */
@@ -424,7 +468,11 @@ encode_utf16_endian (gunichar c, char *outbuf, size_t outleft, unsigned endian)
 	
 	if (c < 0x10000) {
 		if (outleft < 2) {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+			set_errno(E2BIG);
+#else
 			errno = E2BIG;
+#endif
 			return -1;
 		}
 		
@@ -432,7 +480,11 @@ encode_utf16_endian (gunichar c, char *outbuf, size_t outleft, unsigned endian)
 		return 2;
 	} else {
 		if (outleft < 4) {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+			set_errno(E2BIG);
+#else
 			errno = E2BIG;
+#endif
 			return -1;
 		}
 		
@@ -473,7 +525,11 @@ decode_utf8 (char *inbuf, size_t inleft, gunichar *outchar)
 		*outchar = u;
 		return 1;
 	} else if (u < 0xc2) {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+		set_errno(EILSEQ);
+#else
 		errno = EILSEQ;
+#endif
 		return -1;
 	} else if (u < 0xe0) {
 		u &= 0x1f;
@@ -491,12 +547,20 @@ decode_utf8 (char *inbuf, size_t inleft, gunichar *outchar)
 		u &= 0x01;
 		n = 6;
 	} else {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+		set_errno(EILSEQ);
+#else
 		errno = EILSEQ;
+#endif
 		return -1;
 	}
 	
 	if (n > inleft) {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+		set_errno(EINVAL);
+#else
 		errno = EINVAL;
+#endif
 		return -1;
 	}
 	
@@ -545,7 +609,11 @@ encode_utf8 (gunichar c, char *outbuf, size_t outleft)
 	}
 	
 	if (outleft < n) {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+		set_errno(E2BIG);
+#else
 		errno = E2BIG;
+#endif
 		return -1;
 	}
 	
@@ -581,12 +649,20 @@ static int
 encode_latin1 (gunichar c, char *outbuf, size_t outleft)
 {
 	if (outleft < 1) {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+		set_errno(E2BIG);
+#else
 		errno = E2BIG;
+#endif
 		return -1;
 	}
 	
 	if (c > 0xff) {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+		set_errno(EILSEQ);
+#else
 		errno = EILSEQ;
+#endif
 		return -1;
 	}
 	
@@ -867,6 +943,11 @@ eg_utf8_to_utf16_general (const gchar *str, glong len, glong *items_read, glong 
 			if (replace_invalid_codepoints) {
 				u = 2;
 			} else {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+				set_errno(EILSEQ);
+#else
+				errno = EILSEQ;
+#endif
 				errno = EILSEQ;
 				goto error;
 			}

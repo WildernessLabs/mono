@@ -1766,7 +1766,11 @@ mono_test_last_error (int err)
 #ifdef WIN32
 	SetLastError (err);
 #else
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+	set_errno(err);
+#else
 	errno = err;
+#endif
 #endif
 }
 

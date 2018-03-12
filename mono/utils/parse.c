@@ -56,7 +56,11 @@ mono_gc_parse_environment_string_extract_number (const char *str, size_t *out)
 			break;
 	}
 
-	errno = 0;
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+	set_errno( 0);
+#else
+	errno =  0;
+#endif
 	val = strtol (str, &endptr, 10);
 
 	if ((errno == ERANGE && (val == LONG_MAX || val == LONG_MIN))

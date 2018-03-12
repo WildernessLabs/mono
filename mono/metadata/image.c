@@ -1746,9 +1746,17 @@ mono_image_open_a_lot (const char *fname, MonoImageOpenStatus *status, gboolean 
 					*status = MONO_IMAGE_IMAGE_INVALID;
 				else {
 					if (last_error == ERROR_FILE_NOT_FOUND || last_error == ERROR_PATH_NOT_FOUND)
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+						set_errno(ENOENT);
+#else
 						errno = ENOENT;
+#endif
 					else
-						errno = 0;
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+						set_errno( 0);
+#else
+						errno =  0;
+#endif
 				}
 			}
 			return NULL;

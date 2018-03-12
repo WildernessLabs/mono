@@ -38,7 +38,11 @@ mono_mkstemp (char *templ)
 		t = g_mktemp (templ);
 
 		if (t == NULL) {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+			set_errno(EINVAL);
+#else
 			errno = EINVAL;
+#endif
 			return -1;
 		}
 

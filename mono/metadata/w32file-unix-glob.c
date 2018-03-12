@@ -311,7 +311,11 @@ globextend(const gchar *path, mono_w32file_unix_glob_t *pglob, size_t *limitp)
 	/* Broken on opensuse 11 */
 	if ((pglob->gl_flags & W32FILE_UNIX_GLOB_LIMIT) &&
 	    newsize + *limitp >= ARG_MAX) {
-		errno = 0;
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+		set_errno( 0);
+#else
+		errno =  0;
+#endif
 		return(W32FILE_UNIX_GLOB_NOSPACE);
 	}
 #endif

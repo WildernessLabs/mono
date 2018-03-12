@@ -267,7 +267,11 @@ MONO_SIG_HANDLER_FUNC (static, profiler_signal_handler)
 	if (mono_thread_info_get_small_id () == -1 ||
 	    !mono_domain_get () ||
 	    !mono_tls_get_jit_tls ()) {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+		set_errno(old_errno);
+#else
 		errno = old_errno;
+#endif
 		return;
 	}
 
@@ -286,7 +290,11 @@ MONO_SIG_HANDLER_FUNC (static, profiler_signal_handler)
 
 	mono_hazard_pointer_restore_for_signal_handler (hp_save_index);
 
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+	set_errno(old_errno);
+#else
 	errno = old_errno;
+#endif
 
 	mono_chain_signal (MONO_SIG_HANDLER_PARAMS);
 }

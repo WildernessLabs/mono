@@ -538,7 +538,11 @@ DEFAULT_MMAP_THRESHOLD       default: 256K
 #endif  /* linux || __NetBSD__ */
 #endif  /* HAVE_MREMAP */
 #ifndef MALLOC_FAILURE_ACTION
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+#define MALLOC_FAILURE_ACTION  set_errno(ENOMEM);
+#else
 #define MALLOC_FAILURE_ACTION  errno = ENOMEM;
+#endif
 #endif  /* MALLOC_FAILURE_ACTION */
 #ifndef HAVE_MORECORE
 #if ONLY_MSPACES

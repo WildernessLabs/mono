@@ -40,14 +40,22 @@ mono_read (BIO *bio, char *out, int outl)
 	ret = mono->read_func (mono->instance, out, outl, &wantMore);
 
 	if (ret < 0) {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+		set_errno(EIO);
+#else
 		errno = EIO;
+#endif
 		return -1;
 	}
 	if (ret > 0)
 		return ret;
 
 	if (wantMore) {
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+		set_errno(EAGAIN);
+#else
 		errno = EAGAIN;
+#endif
 		BIO_set_retry_read (bio);
 		return -1;
 	}

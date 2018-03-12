@@ -286,7 +286,9 @@ open_file_map (const char *c_path, int input_fd, int mode, gint64 *capacity, int
 	}
 
 	if (result != 0 || *capacity > buf.st_size) {
+#ifdef HAVE_FTRUNCATE
 		int unused G_GNUC_UNUSED = ftruncate (fd, (off_t)*capacity);
+#endif
 	}
 
 	handle = g_new0 (MmapHandle, 1);
@@ -358,7 +360,9 @@ open_memory_map (const char *c_mapName, int mode, gint64 *capacity, int access, 
 		}
 
 		unlink (file_name);
+#ifdef HAVE_FTRUNCATE
 		unused = ftruncate (fd, (off_t)*capacity);
+#endif
 
 		handle = g_new0 (MmapHandle, 1);
 		handle->ref_count = 1;

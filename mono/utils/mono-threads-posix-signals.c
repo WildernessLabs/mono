@@ -125,7 +125,11 @@ restart_signal_handler (int _dummy, siginfo_t *_info, void *context)
 
 	info = mono_thread_info_current ();
 	info->signal = restart_signal_num;
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+	set_errno(old_errno);
+#else
 	errno = old_errno;
+#endif
 }
 
 static void
@@ -219,7 +223,11 @@ suspend_signal_handler (int _dummy, siginfo_t *info, void *context)
 
 done:
 	mono_hazard_pointer_restore_for_signal_handler (hp_save_index);
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+	set_errno(old_errno);
+#else
 	errno = old_errno;
+#endif
 }
 
 void

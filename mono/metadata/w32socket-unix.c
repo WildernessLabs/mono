@@ -347,7 +347,11 @@ mono_w32socket_recvfrom (SOCKET sock, char *buf, int len, int flags, struct sock
 		 */
 		if (sockethandle->still_readable != 1) {
 			ret = -1;
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+			set_errno(EINTR);
+#else
 			errno = EINTR;
+#endif
 		}
 	}
 
@@ -421,7 +425,11 @@ mono_w32socket_recvbuffers (SOCKET sock, WSABUF *buffers, guint32 count, guint32
 		/* see mono_w32socket_recvfrom */
 		if (sockethandle->still_readable != 1) {
 			ret = -1;
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+			set_errno(EINTR);
+#else
 			errno = EINTR;
+#endif
 		}
 	}
 

@@ -813,7 +813,11 @@ mono_thread_info_init (size_t info_size)
 	g_assert (res);
 
 	if ((sleepLimit = g_getenv ("MONO_SLEEP_ABORT_LIMIT")) != NULL) {
-		errno = 0;
+#if defined(__NuttX__) && !defined(__DIRECT_ERRNO_ACCESS)
+		set_errno( 0);
+#else
+		errno =  0;
+#endif
 		long threshold = strtol(sleepLimit, NULL, 10);
 		if ((errno == 0) && (threshold >= 40))  {
 			sleepAbortDuration = threshold;
