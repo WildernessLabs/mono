@@ -493,8 +493,10 @@ mono_mmap_flush (void *mmap_handle, MonoError *error)
 {
 	MmapInstance *h = (MmapInstance *)mmap_handle;
 
+#if defined(HAVE_MSYNC)
 	if (h)
 		msync (h->address, h->length, MS_SYNC);
+#endif
 }
 
 int

@@ -35,6 +35,12 @@
 #include <mono/utils/refcount.h>
 #include <mono/utils/w32api.h>
 
+#if defined(__NuttX__)
+// This is ghastly, but cabs and creal are in libm.  We need our own libm.
+
+int __errno;
+#endif
+
 #define CPU_USAGE_LOW 80
 #define CPU_USAGE_HIGH 95
 
