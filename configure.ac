@@ -406,6 +406,7 @@ case "$host" in
 		support_boehm=no
 		use_sigposix=yes
 		mono_cv_uscore=yes
+		ac_cv_func_mkstemp=yes
 		;;
 	*)
 		AC_MSG_WARN([*** Please add $host to configure.ac checks!])
@@ -529,13 +530,8 @@ AC_SUBST(export_ldflags)
 AC_PROG_LD
 AC_PROG_LD_GNU
 
-<<<<<<< HEAD
-AC_CHECK_HEADERS(sys/filio.h sys/sockio.h netdb.h utime.h sys/utime.h semaphore.h sys/un.h linux/rtc.h sys/syscall.h sys/mkdev.h sys/uio.h sys/param.h sys/sysctl.h libproc.h sys/prctl.h)
-=======
-AM_ICONV()
 
 AC_CHECK_HEADERS(sys/filio.h sys/sockio.h netdb.h utime.h sys/utime.h semaphore.h sys/un.h linux/rtc.h sys/syscall.h sys/mkdev.h sys/uio.h sys/param.h sys/sysctl.h libproc.h sys/prctl.h dlfcn.h)
->>>>>>> [wip] flush linker stuff
 AC_CHECK_HEADERS(sys/param.h sys/socket.h sys/ipc.h sys/utsname.h alloca.h ucontext.h pwd.h sys/select.h netinet/tcp.h netinet/in.h unistd.h sys/types.h link.h asm/sigcontext.h sys/inotify.h arpa/inet.h complex.h unwind.h)
 AC_CHECK_HEADERS([linux/netlink.h linux/rtnetlink.h],
                   [], [], [#include <stddef.h>
@@ -856,10 +852,7 @@ AC_SUBST([WERROR_CFLAGS])
 AC_SUBST([SHARED_CFLAGS])
 
 GLIB_CFLAGS='-I$(top_srcdir)/mono/eglib -I$(top_builddir)/mono/eglib'
-<<<<<<< HEAD
-=======
-GLIB_LIBS='$(top_builddir)/mono/eglib/libeglib.la'
->>>>>>> [wip] flush linker stuff
+#GLIB_LIBS='$(top_builddir)/mono/eglib/libeglib.la'
   
 AC_SUBST(GLIB_CFLAGS)
 
@@ -1403,13 +1396,8 @@ fi
 
 AC_ARG_ENABLE(minimal, [  --enable-minimal=LIST      drop support for LIST subsystems.
      LIST is a comma-separated list from: aot, profiler, decimal, pinvoke, debug, appdomains, verifier, 
-<<<<<<< HEAD
      reflection_emit, reflection_emit_save, large_code, logging, com, ssa, generics, attach, jit, interpreter, simd, soft_debug, perfcounters, normalization, desktop_loader, shared_perfcounters, remoting,
-	 security, lldb, mdb, sgen_marksweep_conc, sgen_split_nursery, sgen_gc_bridge, sgen_debug_helpers.],
-=======
-     reflection_emit, reflection_emit_save, large_code, logging, com, ssa, generics, attach, jit, simd, soft_debug, perfcounters, normalization, desktop_loader, shared_perfcounters, remoting,
-	 security, lldb, mdb, sgen_remset, sgen_marksweep_par, sgen_marksweep_fixed, sgen_marksweep_fixed_par, sgen_copying, sockets.],
->>>>>>> [wip] flush linker stuff
+	 security, lldb, mdb, sgen_marksweep_conc, sgen_split_nursery, sgen_gc_bridge, sgen_debug_helpers, sockets.],
 [
 	for feature in `echo "$enable_minimal" | sed -e "s/,/ /g"`; do
 		eval "mono_feature_disable_$feature='yes'"
@@ -1604,7 +1592,7 @@ fi
 
 if test "x$mono_feature_disable_sockets" = "xyes"; then
 	AC_DEFINE(DISABLE_SOCKETS, 1, [Disable sockets])
-	AC_MSG_NOTICE([Disabled sockets)])
+	AC_MSG_NOTICE([Disabled sockets])
 fi
 
 AC_ARG_ENABLE(executables, [  --disable-executables disable the build of the runtime executables], enable_executables=$enableval, enable_executables=yes)
