@@ -948,7 +948,6 @@ eg_utf8_to_utf16_general (const gchar *str, glong len, glong *items_read, glong 
 #else
 				errno = EILSEQ;
 #endif
-				errno = EILSEQ;
 				goto error;
 			}
 		}
