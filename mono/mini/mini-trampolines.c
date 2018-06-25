@@ -1390,7 +1390,7 @@ mono_trampolines_init (void)
 {
 	mono_os_mutex_init_recursive (&trampolines_mutex);
 
-	if (mono_aot_only)
+	if (mono_aot_only || mono_use_interpreter)
 		return;
 
 	mono_trampoline_code [MONO_TRAMPOLINE_JIT] = create_trampoline_code (MONO_TRAMPOLINE_JIT);

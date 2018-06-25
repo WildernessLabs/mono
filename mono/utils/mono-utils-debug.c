@@ -93,7 +93,11 @@ mono_is_usermode_native_debugger_present (void)
 	if (mono_is_usermode_native_debugger_present_cache == 0) {
 		int er = errno;
 		mono_is_usermode_native_debugger_present_cache = mono_is_usermode_native_debugger_present_slow () ? 1 : 2;
+#if defined(__NuttX__)
+		set_errno(er);
+#else
 		errno = er;
+#endif
 	}
 	return mono_is_usermode_native_debugger_present_cache == 1;
 }

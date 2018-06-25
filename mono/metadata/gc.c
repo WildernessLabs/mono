@@ -974,7 +974,7 @@ mono_gc_init (void)
 	mono_coop_sem_init (&finalizer_sem, 0);
 
 #ifndef LAZY_GC_THREAD_CREATION
-	mono_gc_init_finalizer_thread ();
+	//mono_gc_init_finalizer_thread ();
 #endif
 }
 
