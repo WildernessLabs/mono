@@ -1187,7 +1187,7 @@ int mspace_mallopt(int, int);
 #include <string.h>      /* for memset etc */
 #endif  /* LACKS_STRING_H */
 #if USE_BUILTIN_FFS
-#ifndef LACKS_STRINGS_H
+#ifndef LACKS_STRINGS_H && defined(HAVE_STRINGS_H)
 #include <strings.h>     /* for ffs */
 #endif /* LACKS_STRINGS_H */
 #endif /* USE_BUILTIN_FFS */
