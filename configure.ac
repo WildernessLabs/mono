@@ -2011,7 +2011,7 @@ if test x$host_win32 = xno; then
 	AC_CHECK_FUNCS(ftruncate)
 	AC_CHECK_FUNCS(msync)
 
-	AC_CHECK_FUNCS(gethostname)
+	AC_CHECK_FUNCS(gethostname getpeername)
 	AC_CHECK_FUNCS(geteuid)
 	AC_CHECK_FUNCS(utime utimes)
 
