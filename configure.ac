@@ -2015,6 +2015,8 @@ if test x$host_win32 = xno; then
 	AC_CHECK_FUNCS(geteuid)
 	AC_CHECK_FUNCS(utime utimes)
 
+	AC_CHECK_FUNCS(openlog closelog)
+
 	AC_FUNC_STRERROR_R()
 
 	dnl ****************************************************************
