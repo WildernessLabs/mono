@@ -2003,6 +2003,9 @@ if test x$host_win32 = xno; then
 	AC_CHECK_FUNCS(lstat)
 	AC_CHECK_FUNCS(getdtablesize)
 
+	AC_CHECK_FUNCS(ftruncate)
+	AC_CHECK_FUNCS(msync)
+
 	AC_FUNC_STRERROR_R()
 
 	dnl ****************************************************************
