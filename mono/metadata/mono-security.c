@@ -65,7 +65,7 @@
  */
 static size_t mono_sysconf (int name)
 {
-#ifdef HAVE_SYSCONF
+#ifdef HAVE_GETEUID
 	size_t size = (size_t) sysconf (name);
 	/* default value */
 	return (size == -1) ? MONO_SYSCONF_DEFAULT_SIZE : size;
@@ -220,7 +220,11 @@ IsMemberOf (gid_t user, struct group *g)
 gpointer
 mono_security_principal_windows_identity_get_current_token (MonoError *error)
 {
+#ifdef HAVE_GETEUID
 	return GINT_TO_POINTER (geteuid ());
+#else
+	return GINT_TO_POINTER (0);
+#endif
 }
 
 gpointer
@@ -376,7 +380,11 @@ ves_icall_System_Security_Principal_WindowsImpersonationContext_SetCurrentToken 
 	if (setresuid (-1, itoken, getuid ()) < 0)
 		return FALSE;
 #endif
+#ifdef HAVE_GETEUID
 	return geteuid () == itoken;
+#else
+	return FALSE;
+#endif
 #endif
 }
 
@@ -401,7 +409,11 @@ ves_icall_System_Security_Principal_WindowsImpersonationContext_RevertToSelf (Mo
 #else
 	return TRUE;
 #endif
+#ifdef HAVE_GETEUID
 	return geteuid () == suid;
+#else
+	return FALSE;
+#endif
 #endif
 }
 #endif /* G_HAVE_API_SUPPORT(HAVE_CLASSIC_WINAPI_SUPPORT) */
