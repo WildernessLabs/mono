@@ -2016,6 +2016,7 @@ if test x$host_win32 = xno; then
 	AC_CHECK_FUNCS(utime utimes)
 
 	AC_CHECK_FUNCS(openlog closelog)
+	AC_CHECK_FUNCS(atexit)
 
 	AC_FUNC_STRERROR_R()
 
