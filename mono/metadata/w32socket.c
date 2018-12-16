@@ -45,6 +45,7 @@
 #include <unistd.h>
 #endif
 #include <errno.h>
+#include <mono/utils/mono-errno.h>
 
 #include <sys/types.h>
 
@@ -1285,7 +1286,7 @@ ves_icall_System_Net_Sockets_Socket_Poll_internal (gsize sock, gint mode,
 				timeout = 0;
 			}
 			
-			errno = err;
+			SET_ERRNO(err)
 		}
 
 		if (ret == -1 && errno == EINTR) {
@@ -1297,7 +1298,7 @@ ves_icall_System_Net_Sockets_Socket_Poll_internal (gsize sock, gint mode,
 			/* Suspend requested? */
 			mono_thread_interruption_checkpoint_void ();
 
-			errno = EINTR;
+			SET_ERRNO(EINTR)
 		}
 	} while (ret == -1 && errno == EINTR);
 
@@ -1662,7 +1663,7 @@ ves_icall_System_Net_Sockets_Socket_Select_internal (MonoArrayHandleOut sockets,
 			timeout = rtimeout - sec * 1000;
 			if (timeout < 0)
 				timeout = 0;
-			errno = err;
+			SET_ERRNO(err)
 		}
 
 		if (ret == -1 && errno == EINTR) {
@@ -1675,7 +1676,7 @@ ves_icall_System_Net_Sockets_Socket_Select_internal (MonoArrayHandleOut sockets,
 			/* Suspend requested? */
 			mono_thread_interruption_checkpoint_void ();
 
-			errno = EINTR;
+			SET_ERRNO(EINTR)
 		}
 	} while (ret == -1 && errno == EINTR);
 	

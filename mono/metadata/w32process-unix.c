@@ -83,6 +83,7 @@
 #include <mono/utils/strenc.h>
 #include <mono/utils/mono-io-portability.h>
 #include <mono/utils/w32api.h>
+#include <mono/utils/mono-errno.h>
 #include "object-internals.h"
 
 #ifndef MAXPATHLEN
@@ -1393,7 +1394,7 @@ MONO_SIGNAL_HANDLER_FUNC (static, mono_sigchld_signal_handler, (int _dummy, sigi
 
 	mono_gc_finalize_notify ();
 
-	errno = old_errno;
+	SET_ERRNO(old_errno)
 }
 
 static void
@@ -1499,7 +1500,7 @@ is_managed_binary (const char *filename)
 	 * probably wouldn't be able to open it anyway.
 	 */
 	if (file < 0) {
-		errno = original_errno;
+		SET_ERRNO(original_errno)
 		return FALSE;
 	}
 
@@ -1602,7 +1603,7 @@ is_managed_binary (const char *filename)
 
 leave:
 	close (file);
-	errno = original_errno;
+	SET_ERRNO(original_errno)
 	return managed;
 }
 
@@ -2676,7 +2677,7 @@ ves_icall_Microsoft_Win32_NativeMethods_GetPriorityClass (gpointer handle, MonoE
 
 	pid = ((MonoW32HandleProcess*) handle_data->specific)->pid;
 
-	errno = 0;
+	SET_ERRNO(0)
 	res = getpriority (PRIO_PROCESS, pid);
 	if (res == -1 && errno != 0) {
 		switch (errno) {
@@ -3167,7 +3168,7 @@ map_pe_file (gunichar2 *filename, gint32 *map_size, void **handle)
 
 		located_filename = mono_portability_find_file (filename_ext, TRUE);
 		if (!located_filename) {
-			errno = saved_errno;
+			SET_ERRNO(saved_errno)
 
 			mono_trace (G_LOG_LEVEL_DEBUG, MONO_TRACE_IO_LAYER_PROCESS, "%s: Error opening file %s (1): %s", __func__, filename_ext, strerror (errno));
 			goto error;

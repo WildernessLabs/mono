@@ -8,6 +8,7 @@
 
 #include "btls-ssl.h"
 #include "btls-bio.h"
+#include "utils/mono-errno.h"
 #include <errno.h>
 
 struct MonoBtlsBio {
@@ -40,14 +41,14 @@ mono_read (BIO *bio, char *out, int outl)
 	ret = mono->read_func (mono->instance, out, outl, &wantMore);
 
 	if (ret < 0) {
-		errno = EIO;
+		SET_ERRNO(EIO)
 		return -1;
 	}
 	if (ret > 0)
 		return ret;
 
 	if (wantMore) {
-		errno = EAGAIN;
+		SET_ERRNO(EAGAIN)
 		BIO_set_retry_read (bio);
 		return -1;
 	}

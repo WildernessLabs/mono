@@ -57,6 +57,7 @@
 #include "utils/mono-logger-internals.h"
 #include "utils/mono-poll.h"
 #include "utils/mono-compiler.h"
+#include "utils/mono-errno.h"
 
 typedef struct {
 	MonoFDHandle fdhandle;
@@ -347,7 +348,7 @@ mono_w32socket_recvfrom (SOCKET sock, char *buf, int len, int flags, struct sock
 		 */
 		if (sockethandle->still_readable != 1) {
 			ret = -1;
-			errno = EINTR;
+			SET_ERRNO(EINTR)
 		}
 	}
 
@@ -420,7 +421,7 @@ mono_w32socket_recvbuffers (SOCKET sock, WSABUF *buffers, guint32 count, guint32
 		/* see mono_w32socket_recvfrom */
 		if (sockethandle->still_readable != 1) {
 			ret = -1;
-			errno = EINTR;
+			SET_ERRNO(EINTR)
 		}
 	}
 

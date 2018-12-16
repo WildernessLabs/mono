@@ -15,6 +15,7 @@
 #include "pal_utilities.h"
 
 #include "pal-android.h"
+#include <mono/utils/mono-errno.h>
 
 int32_t SystemNative_Read(intptr_t fd, void* buffer, int32_t bufferSize)
 {
@@ -23,7 +24,7 @@ int32_t SystemNative_Read(intptr_t fd, void* buffer, int32_t bufferSize)
 
     if (bufferSize < 0)
     {
-        errno = EINVAL;
+        SET_ERRNO(EINVAL)
         return -1;
     }
 

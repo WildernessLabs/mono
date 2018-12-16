@@ -5,6 +5,7 @@
 #include <glib.h>
 #include <gmodule.h>
 #include <errno.h>
+#include <mono/utils/mono-errno.h>
 #include <time.h>
 #include <math.h>
 #include <setjmp.h>
@@ -1765,7 +1766,7 @@ mono_test_last_error (int err)
 #ifdef WIN32
 	SetLastError (err);
 #else
-	errno = err;
+	SET_ERRNO(err);
 #endif
 }
 

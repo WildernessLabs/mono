@@ -158,7 +158,7 @@ mono_threads_pthread_kill (MonoThreadInfo *info, int signum)
 
 	if (result < 0) {
 		result = errno;
-		errno = old_errno;
+		SET_ERRNO(old_errno)
 	}
 #elif defined (HAVE_PTHREAD_KILL)
 	result = pthread_kill (mono_thread_info_get_tid (info), signum);

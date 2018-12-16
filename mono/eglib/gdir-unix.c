@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include "mono/utils/mono-errno.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -113,7 +114,7 @@ g_mkdir_with_parents (const gchar *pathname, int mode)
 	int rv;
 	
 	if (!pathname || *pathname == '\0') {
-		errno = EINVAL;
+		SET_ERRNO(EINVAL)
 		return -1;
 	}
 	
