@@ -60,9 +60,13 @@ ifndef DISABLE_WASM
 wasm_ARCHIVE=
 endif
 
+ifndef DISABLE_NUTTX
+nuttx_ARCHIVE=
+endif
+
 ##
 # Parameters:
-#  $(1): target (android, ios, wasm)
+#  $(1): target (android, ios, wasm, nuttx)
 define ArchiveTemplate
 _$(1)_HASH = $$(shell git -C $$(TOP) rev-parse HEAD)
 _$(1)_PACKAGE = $(1)-$$(CONFIGURATION)-$$(UNAME)-$$(_$(1)_HASH).zip
@@ -82,6 +86,10 @@ endif
 
 ifndef DISABLE_WASM
 $(eval $(call ArchiveTemplate,wasm))
+endif
+
+ifndef DISABLE_NUTTX
+$(eval $(call ArchiveTemplate,nuttx))
 endif
 
 ## Targets
@@ -156,6 +164,10 @@ include llvm.mk
 ## Android targets
 ifndef DISABLE_ANDROID
 include android.mk
+endif
+
+ifndef DISABLE_NUTTX
+include nuttx.mk
 endif
 
 ## iOS targets
