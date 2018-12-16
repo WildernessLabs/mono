@@ -2006,6 +2006,8 @@ if test x$host_win32 = xno; then
 	AC_CHECK_FUNCS(ftruncate)
 	AC_CHECK_FUNCS(msync)
 
+	AC_CHECK_FUNCS(gethostname)
+
 	AC_FUNC_STRERROR_R()
 
 	dnl ****************************************************************
