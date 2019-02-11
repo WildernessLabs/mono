@@ -1,4 +1,9 @@
 #!/bin/sh
+if [[ -z "${MEADOW_BASE}" ]]; then
+    echo "ERROR: \$MEADOW_BASE variable not found, make sure its set."
+    echo "Make sure to reload the bash path with: source ~/.bash_profile"
+    exit 1
+fi
 NUTTX_HOME=$MEADOW_BASE/nuttx
 COMMON_FLAGS="-D_POSIX_VERSION=201112L -DHAVE_USR_INCLUDE_MALLOC_H=1 -DLACKS_SYS_PARAM_H=1 -D__NuttX__=1 -DSA_RESTART=0 -DSTDIN_FILENO=0 -DSTDOUT_FILENO=1 -DSTDERR_FILENO=2 -I$NUTTX_HOME/include -nostdinc -nostdlib -fno-builtin -Os -Wno-discarded-qualifiers -Wno-unused-function -Wno-missing-prototypes -Wno-misleading-indentation -Wno-unused-variable -Wno-int-conversion -Wno-shift-count-overflow -Wno-pointer-to-int-cast -Wno-int-to-pointer-cast -Wno-maybe-uninitialized -Wno-overflow -Wno-incompatible-pointer-types -Wno-format"
 CFLAGS="--specs=nosys.specs -mthumb -mcpu=cortex-m7 -mfloat-abi=hard -mfpu=fpv5-d16 $COMMON_FLAGS"
