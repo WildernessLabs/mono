@@ -65,6 +65,7 @@ mono_getrandom (guchar *buffer, gint buffer_size, gint flags, MonoError *error)
 
 	error_init (error);
 
+#ifndef __NuttX__
 	/* Read until the buffer is filled. This may block if random pool isn't initialized. */
 	do {
 		err = getrandom (buffer + count, buffer_size - count, flags);
@@ -82,6 +83,9 @@ mono_getrandom (guchar *buffer, gint buffer_size, gint flags, MonoError *error)
 		}
 		count += err;
 	} while (count < buffer_size);
+#else
+	getrandom (buffer + count, buffer_size - count);
+#endif
 	return 1;
 }
 #endif /* HAVE_GETRANDOM */
