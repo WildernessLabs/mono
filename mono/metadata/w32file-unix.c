@@ -4314,10 +4314,14 @@ mono_w32file_get_disk_free_space (const gunichar2 *path_name, guint64 *free_byte
 		MONO_ENTER_GC_SAFE;
 		ret = statfs (utf8_path_name, &fsstat);
 		MONO_EXIT_GC_SAFE;
+#ifndef __NuttX__
 #if defined (MNT_RDONLY)
 		isreadonly = ((fsstat.f_flags & MNT_RDONLY) == MNT_RDONLY);
 #elif defined (MS_RDONLY)
 		isreadonly = ((fsstat.f_flags & MS_RDONLY) == MS_RDONLY);
+#endif
+#else
+		isreadonly = 0;
 #endif
 		block_size = fsstat.f_bsize;
 #endif
