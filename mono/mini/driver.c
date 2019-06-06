@@ -1784,7 +1784,7 @@ mono_enable_interp (const char *opts)
  * in the same way that the mono command line VM would.
  */
 int
-mono_main (int argc, char* argv[])
+mono_main_driver (int argc, char* argv[])
 {
 	MainThreadArgs main_args;
 	MonoAssembly *assembly;
