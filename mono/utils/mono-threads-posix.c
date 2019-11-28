@@ -318,6 +318,7 @@ mono_memory_barrier_process_wide (void)
 	status = pthread_mutex_lock (&memory_barrier_process_wide_mutex);
 	g_assert (status == 0);
 
+#ifndef __NuttX__
 	if (memory_barrier_process_wide_helper_page == NULL) {
 		status = posix_memalign (&memory_barrier_process_wide_helper_page, mono_pagesize (), mono_pagesize ());
 		g_assert (status == 0);
@@ -335,6 +336,7 @@ mono_memory_barrier_process_wide (void)
 
 	status = mono_mprotect (memory_barrier_process_wide_helper_page, mono_pagesize (), MONO_MMAP_NONE);
 	g_assert (status == 0);
+#endif
 
 	status = pthread_mutex_unlock (&memory_barrier_process_wide_mutex);
 	g_assert (status == 0);
