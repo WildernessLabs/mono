@@ -447,12 +447,21 @@ interp_sources =	\
 	interp/mintops.def	\
 	interp/mintops.c	\
 <<<<<<< HEAD
+<<<<<<< HEAD
 	interp/transform.h	\
 	interp/transform.c
 =======
 	interp/transform.c	\
 	interp/interp_tramps.S
 >>>>>>> [wip] Flush the makefile.am/in changes too
+=======
+	interp/transform.c
+
+if ARM
+interp_sources += \
+    interp/interp_tramps.S
+endif
+>>>>>>> Fix build issue with ARM assembly trampolines not being guarded.
 
 interp_libs = libmono-ee-interp.la
 
