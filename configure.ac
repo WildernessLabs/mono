@@ -2601,7 +2601,10 @@ if test x$host_win32 = xno; then
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_GETADDRINFO, 1, [Have getaddrinfo])
 	], [
-		AC_MSG_RESULT(no)
+		# NX-MS
+		# AC_MSG_RESULT(no)
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_GETADDRINFO, 1, [Have getaddrinfo])
 	])
 
 	dnl **********************************
@@ -2670,7 +2673,10 @@ if test x$host_win32 = xno; then
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_GETPROTOBYNAME, 1, [Have getprotobyname])
 	], [
-		AC_MSG_RESULT(no)
+		# NX-MS
+		# AC_MSG_RESULT(no)
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_GETPROTOBYNAME, 1, [Have getprotobyname])
 	])
 
 	dnl **********************************
@@ -2704,7 +2710,10 @@ if test x$host_win32 = xno; then
 		AC_MSG_RESULT(yes)
 		AC_DEFINE(HAVE_GETNAMEINFO, 1, [Have getnameinfo])
 	], [
-		AC_MSG_RESULT(no)
+		# NX-MS
+		# AC_MSG_RESULT(no)
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_GETNAMEINFO, 1, [Have getnameinfo])
 	])
 
 
