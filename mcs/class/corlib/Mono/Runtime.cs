@@ -27,6 +27,7 @@
 //
 
 using System;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -80,6 +81,8 @@ namespace Mono {
 			// No longer used
 			return true;
 		}
+
+		static object exception_capture = new object ();
 
 		[MethodImplAttribute (MethodImplOptions.InternalCall)]
 		static extern string ExceptionToState_internal (Exception exc, out ulong portable_hash, out ulong unportable_hash);
@@ -143,8 +146,11 @@ namespace Mono {
 		{
 			ulong portable_hash;
 			ulong unportable_hash;
-			string payload_str = ExceptionToState_internal (exc, out portable_hash, out unportable_hash);
-			SendMicrosoftTelemetry (payload_str, portable_hash, unportable_hash);
+			lock (exception_capture)
+			{
+				string payload_str = ExceptionToState_internal (exc, out portable_hash, out unportable_hash);
+				SendMicrosoftTelemetry (payload_str, portable_hash, unportable_hash);
+			}
 		}
 
 		// All must be set except for configDir_str
@@ -248,6 +254,43 @@ namespace Mono {
 			{
 				return (CrashReportLogLevel) CheckCrashReportLog_internal (directory_chars.Value, clear);
 			}
+		}
+
+		static string get_breadcrumb_value (string file_prefix, string directory_str, bool clear)
+		{
+			var allfiles = Directory.GetFiles (directory_str, $"{file_prefix}_*" );
+			if (allfiles.Length == 0)
+				return string.Empty;
+
+			if (allfiles.Length > 1) {
+				// it's impossible to tell which breadcrumb is the last one (let's not trust filesystem timestamps)
+				// delete the multiple files so at least next crash can make sense
+				try {
+					Array.ForEach (allfiles, f => File.Delete (f) );
+				} catch (Exception) { }
+
+				return string.Empty;
+			}
+
+			if (clear)
+				File.Delete (allfiles [0]);
+
+			var filename = Path.GetFileName (allfiles [0]);
+			return filename.Substring (file_prefix.Length + 1);
+		}
+
+		static long CheckCrashReportHash (string directory_str, bool clear)
+		{
+			var value = get_breadcrumb_value ("crash_hash", directory_str, clear);
+			if (value == string.Empty)
+				return 0;
+			else
+				return Convert.ToInt64 (value, 16);
+		}
+
+		static string CheckCrashReportReason (string directory_str, bool clear)
+		{
+			return get_breadcrumb_value ("crash_reason", directory_str, clear);
 		}
 
 		[MethodImplAttribute (MethodImplOptions.InternalCall)]

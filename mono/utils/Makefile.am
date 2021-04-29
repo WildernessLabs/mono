@@ -1,4 +1,4 @@
-include $(top_srcdir)/mk/common.mk
+MAKEFLAGS := $(MAKEFLAGS) --no-builtin-rules
 
 if !ENABLE_MSVC_ONLY
 
@@ -207,6 +207,7 @@ monoutils_sources = \
 	bsearch.h	\
 	bsearch.c	\
 	mono-signal-handler.h	\
+	mono-signal-handler.c	\
 	mono-conc-hashtable.h	\
 	mono-conc-hashtable.c	\
 	json.h	\

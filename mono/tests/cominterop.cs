@@ -224,7 +224,21 @@ public class Tests
 	[DllImport ("libtest")]
 	public static extern int mono_test_marshal_variant_out_bool_false_unmanaged (VarRefFunc func);
 
-    [DllImport ("libtest")]
+	public delegate int CheckStructWithVariantFunc ([MarshalAs (UnmanagedType.Struct)] StructWithVariant obj);
+	[DllImport ("libtest")]
+	public static extern int mono_test_marshal_struct_with_variant_in_unmanaged (CheckStructWithVariantFunc func);
+
+	public delegate int CheckStructWithBstrFunc ([MarshalAs (UnmanagedType.Struct)] StructWithBstr obj);
+	[DllImport ("libtest")]
+	public static extern int mono_test_marshal_struct_with_bstr_in_unmanaged (CheckStructWithBstrFunc func);
+
+	[DllImport ("libtest")]
+	public static extern int mono_test_marshal_struct_with_variant_out_unmanaged ([MarshalAs (UnmanagedType.Struct)] StructWithVariant obj);
+
+	[DllImport ("libtest")]
+	public static extern int mono_test_marshal_struct_with_bstr_out_unmanaged ([MarshalAs (UnmanagedType.Struct)] StructWithBstr obj);
+
+	[DllImport ("libtest")]
 	public static extern int mono_test_marshal_com_object_create (out IntPtr pUnk);
 
 	[DllImport ("libtest")]
@@ -268,6 +282,12 @@ public class Tests
 
 	[DllImport("libtest")]
 	public static extern int mono_test_cominterop_ccw_queryinterface ([MarshalAs (UnmanagedType.Interface)] IOtherTest itest);
+
+	[DllImport("libtest")]
+	public static extern int mono_test_cominterop_ccw_queryinterface_foreign_thread ([MarshalAs (UnmanagedType.Interface)] ITest itest);
+
+	[DllImport ("libtest")]
+	public static extern int mono_test_cominterop_ccw_itest_foreign_thread ([MarshalAs (UnmanagedType.Interface)] ITest itest);
 
 	[DllImport("libtest")]
 	public static extern int mono_test_marshal_safearray_out_1dim_vt_bstr_empty ([MarshalAs (UnmanagedType.SafeArray, SafeArraySubType = VarEnum.VT_VARIANT)]out Array array);
@@ -332,7 +352,6 @@ public class Tests
 
 	public static int Main ()
 	{
-
 		bool isWindows = !(((int)Environment.OSVersion.Platform == 4) ||
 			((int)Environment.OSVersion.Platform == 128));
 
@@ -349,6 +368,15 @@ public class Tests
 				return 1;
 			if (mono_test_marshal_bstr_out_null (out str) != 0 || str != null)
 				return 2;
+
+			var sbfunc = new CheckStructWithBstrFunc(mono_test_marshal_struct_with_bstr_callback);
+			if (mono_test_marshal_struct_with_bstr_in_unmanaged(sbfunc) != 0)
+				return 3;
+
+			StructWithBstr swithB;
+			swithB.data = "this is a test string";
+			if (mono_test_marshal_struct_with_bstr_out_unmanaged (swithB) != 0)
+				return 4;
 
 			#endregion // BSTR Tests
 
@@ -475,6 +503,15 @@ public class Tests
 			if (mono_test_marshal_variant_out_bstr_byref (out obj) != 0 || (string)obj != "PI")
 				return 107;
 
+			var svfunc = new CheckStructWithVariantFunc(mono_test_marshal_struct_with_variant_callback);
+			if (mono_test_marshal_struct_with_variant_in_unmanaged(svfunc) != 0)
+				return 108;
+
+			StructWithVariant swithV;
+			swithV.data = (object)-123;
+			if (mono_test_marshal_struct_with_variant_out_unmanaged (swithV) != 0)
+				return 109;
+
 			#endregion // VARIANT Tests
 
 			#region Runtime Callable Wrapper Tests
@@ -598,6 +635,7 @@ public class Tests
 			if (mono_test_cominterop_ccw_queryinterface (otherTest) != 0)
 				return 202;
 
+
 			if (mono_test_marshal_retval_ccw_itest(test, true) != 0)
 				return 203;
 
@@ -607,6 +645,19 @@ public class Tests
 
 			if (mono_test_default_interface_ccw(test) != 0)
 				return 205;
+
+			if (mono_test_cominterop_ccw_queryinterface_foreign_thread (test) != 0)
+				return 206;
+
+			{
+				ManagedTest mt = new ManagedTest ();
+				if (mono_test_cominterop_ccw_itest_foreign_thread (test) != 0)
+					return 207;
+				if (mt.Status != 0) {
+					Console.Error.WriteLine ("after mono_test_cominterop_ccw_itest_foreign_thread Status = {0}", mt.Status);
+					return 208;
+				}
+			}
 
 			#endregion // COM Callable Wrapper Tests
 
@@ -1561,8 +1612,38 @@ public class Tests
 	public static int TestIfaceNoIcall (ITestPresSig itest) {
 		return itest.Return22NoICall () == 22 ? 0 : 1;
 	}
+
+        public static int mono_test_marshal_struct_with_variant_callback(StructWithVariant sv)
+        {
+            if (sv.data.GetType() != typeof(int))
+                return 1;
+            if ((int)sv.data != -123)
+                return 2;
+            return 0;
+        }
+
+        public static int mono_test_marshal_struct_with_bstr_callback(StructWithBstr sb)
+        {
+            if (sb.data.GetType() != typeof(string))
+                return 1;
+            if ((string)sb.data != "this is a test string")
+                return 2;
+            return 0;
+        }
 }
 
 public class TestVisible
 {
+}
+
+public struct StructWithVariant
+{
+	[MarshalAs (UnmanagedType.Struct)]
+	public object data;
+}
+
+public struct StructWithBstr
+{
+	[MarshalAs (UnmanagedType.BStr)]
+	public string data;
 }

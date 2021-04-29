@@ -767,7 +767,10 @@ unwinder_unwind_frame (Unwinder *unwinder,
 		unwinder->in_interp = mini_get_interp_callbacks ()->frame_iter_next (&unwinder->interp_iter, frame);
 		if (frame->type == FRAME_TYPE_INTERP) {
 			parent = mini_get_interp_callbacks ()->frame_get_parent (frame->interp_frame);
-			unwinder->last_frame_addr = parent;
+			if (parent)
+				unwinder->last_frame_addr = mini_get_interp_callbacks ()->frame_get_native_stack_addr (parent);
+			else
+				unwinder->last_frame_addr = NULL;
 		}
 		if (!unwinder->in_interp)
 			return unwinder_unwind_frame (unwinder, domain, jit_tls, prev_ji, ctx, new_ctx, trace, lmf, save_locations, frame);
@@ -1789,6 +1792,9 @@ mono_summarize_unmanaged_stack (MonoThreadSummary *out)
 
 		if (out->unmanaged_frames [i].str_descr [0] != '\0')
 			out->unmanaged_frames [i].unmanaged_data.has_name = TRUE;
+
+		out->hashes.offset_free_hash = summarize_offset_free_hash (out->hashes.offset_free_hash, frame);
+		out->hashes.offset_rich_hash = summarize_offset_rich_hash (out->hashes.offset_rich_hash, frame);
 	}
 #endif
 
@@ -2710,12 +2716,6 @@ mono_handle_exception_internal (MonoContext *ctx, MonoObject *obj, gboolean resu
 				G_BREAKPOINT ();
 			mini_get_dbg_callbacks ()->handle_exception ((MonoException *)obj, ctx, NULL, NULL);
 
-			if (mini_debug_options.suspend_on_unhandled && mono_object_class (obj) != mono_defaults.threadabortexception_class) {
-				mono_runtime_printf_err ("Unhandled exception, suspending...");
-				while (1)
-					;
-			}
-
 			// FIXME: This runs managed code so it might cause another stack overflow when
 			// we are handling a stack overflow
 			mini_set_abort_threshold (&catch_frame);
@@ -2740,10 +2740,15 @@ mono_handle_exception_internal (MonoContext *ctx, MonoObject *obj, gboolean resu
 			if (unhandled)
 				mini_get_dbg_callbacks ()->handle_exception ((MonoException *)obj, ctx, NULL, NULL);
 			else if (!ji || (jinfo_get_method (ji)->wrapper_type == MONO_WRAPPER_RUNTIME_INVOKE)) {
-				if (last_mono_wrapper_runtime_invoke && mono_thread_get_main () && (mono_thread_internal_current () == mono_thread_get_main ()->internal_thread))
+				if (last_mono_wrapper_runtime_invoke && !mono_thread_internal_current ()->threadpool_thread) {
 					mini_get_dbg_callbacks ()->handle_exception ((MonoException *)obj, ctx, NULL, NULL);
-				else
+					if (mini_get_debug_options ()->top_runtime_invoke_unhandled) {
+						mini_set_abort_threshold (&catch_frame);
+						mono_unhandled_exception_internal (obj);
+					}
+				} else {
 					mini_get_dbg_callbacks ()->handle_exception ((MonoException *)obj, ctx, &ctx_cp, &catch_frame);
+				}
 			}
 			else if (res != MONO_FIRST_PASS_CALLBACK_TO_NATIVE)
 				if (!is_caught_unmanaged)
@@ -3367,7 +3372,6 @@ print_stack_frame_to_string (StackFrameInfo *frame, MonoContext *ctx, gpointer d
 }
 
 #ifndef MONO_CROSS_COMPILE
-static gboolean handle_crash_loop = FALSE;
 
 /*
  * mono_handle_native_crash:
@@ -3379,9 +3383,6 @@ void
 mono_handle_native_crash (const char *signal, MonoContext *mctx, MONO_SIG_HANDLER_INFO_TYPE *info)
 {
 	MonoJitTlsData *jit_tls = mono_tls_get_jit_tls ();
-
-	if (handle_crash_loop)
-		return;
 
 #ifdef MONO_ARCH_USE_SIGACTION
 	struct sigaction sa;
@@ -3412,11 +3413,8 @@ mono_handle_native_crash (const char *signal, MonoContext *mctx, MONO_SIG_HANDLE
 		}
 	}
 
-	/* prevent infinite loops in crash handling */
-	handle_crash_loop = TRUE;
-
 	/*
-	 * A SIGSEGV indicates something went very wrong so we can no longer depend
+	 * A crash indicates something went very wrong so we can no longer depend
 	 * on anything working. So try to print out lots of diagnostics, starting 
 	 * with ones which have a greater chance of working.
 	 */

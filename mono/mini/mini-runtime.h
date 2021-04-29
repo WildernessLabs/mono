@@ -256,8 +256,13 @@ typedef struct MonoDebugOptions {
 	 */
 	gboolean aot_skip_set;
 	int aot_skip;
-} MonoDebugOptions;
 
+	/*
+	 * Treat exceptions which reach the topmost runtime invoke as unhandled when
+	 * embedding.
+	 */
+	gboolean top_runtime_invoke_unhandled;
+} MonoDebugOptions;
 
 /*
  * We need to store the image which the token refers to along with the token,
@@ -343,11 +348,7 @@ struct MonoJumpInfo {
 		MonoImage      *image;
 		MonoVTable     *vtable;
 		const char     *name;
-#ifdef __cplusplus // MonoJitICallId has base type of gsize to widen per above.
-		MonoJitICallId jit_icall_id;
-#else
-		gsize jit_icall_id;	// only 9 bits used but widened per above
-#endif
+		gsize jit_icall_id;	// MonoJitICallId, 9 bits, but widened per above.
 		MonoJumpInfoToken  *token;
 		MonoJumpInfoBBTable *table;
 		MonoJumpInfoRgctxEntry *rgctx_entry;
@@ -384,6 +385,7 @@ extern GList* mono_aot_paths;
 extern MonoDebugOptions mini_debug_options;
 extern GSList *mono_interp_only_classes;
 extern char *sdb_options;
+extern MonoMethodDesc *mono_stats_method_desc;
 
 /*
 This struct describes what execution engine feature to use.
@@ -426,6 +428,7 @@ MONO_API void        mono_parse_env_options         (int *ref_argc, char **ref_a
 MONO_API char       *mono_parse_options_from        (const char *options, int *ref_argc, char **ref_argv []);
 MONO_API int         mono_regression_test_step      (int verbose_level, const char *image, const char *method_name);
 
+void                   mono_runtime_print_stats      (void);
 
 void                   mono_interp_stub_init         (void);
 void                   mini_install_interp_callbacks (const MonoEECallbacks *cbs);
@@ -568,7 +571,7 @@ mono_is_addr_implicit_null_check (void *addr);
 #endif
 
 void MONO_SIG_HANDLER_SIGNATURE (mono_sigfpe_signal_handler) ;
-void MONO_SIG_HANDLER_SIGNATURE (mono_sigill_signal_handler) ;
+void MONO_SIG_HANDLER_SIGNATURE (mono_crashing_signal_handler) ;
 void MONO_SIG_HANDLER_SIGNATURE (mono_sigsegv_signal_handler);
 void MONO_SIG_HANDLER_SIGNATURE (mono_sigint_signal_handler) ;
 gboolean MONO_SIG_HANDLER_SIGNATURE (mono_chain_signal);
@@ -604,6 +607,17 @@ gboolean MONO_SIG_HANDLER_SIGNATURE (mono_chain_signal);
 #endif
 
 void mini_register_sigterm_handler (void);
+
+#define MINI_BEGIN_CODEGEN() do { \
+	mono_codeman_enable_write (); \
+	} while (0)
+
+#define MINI_END_CODEGEN(buf,size,type,arg) do { \
+	mono_codeman_disable_write (); \
+	mono_arch_flush_icache ((buf), (size)); \
+	if ((int)type != -1) \
+		MONO_PROFILER_RAISE (jit_code_buffer, ((buf), (size), (type), (arg))); \
+	} while (0)
 
 #endif /* __MONO_MINI_RUNTIME_H__ */
 

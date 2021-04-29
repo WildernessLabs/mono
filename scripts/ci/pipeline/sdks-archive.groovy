@@ -39,32 +39,43 @@ parallel (
     "Android Linux (Debug)": {
         throttle(['provisions-android-toolchain']) {
             node ("debian-10-amd64-exclusive") {
-                archive ("android", "debug", "Linux", "debian-10-amd64multiarchi386-preview", "g++-mingw-w64 gcc-mingw-w64 lib32stdc++6 lib32z1 libz-mingw-w64-dev linux-libc-dev:i386 zlib1g-dev zlib1g-dev:i386 zulu-8 rsync python3-pip", "/mnt/scratch")
+                archive ("android", "debug", "Linux", "debian-10-amd64multiarchi386-preview", "g++-mingw-w64 gcc-mingw-w64 lib32stdc++6 lib32z1 libz-mingw-w64-dev linux-libc-dev:i386 zlib1g-dev zlib1g-dev:i386 adoptopenjdk-8-hotspot rsync python3-pip", "/mnt/scratch")
             }
         }
     },
     "Android Linux (Release)": {
         throttle(['provisions-android-toolchain']) {
             node ("debian-10-amd64-exclusive") {
-                archive ("android", "release", "Linux", "debian-10-amd64multiarchi386-preview", "g++-mingw-w64 gcc-mingw-w64 lib32stdc++6 lib32z1 libz-mingw-w64-dev linux-libc-dev:i386 zlib1g-dev zlib1g-dev:i386 zulu-8 rsync python3-pip", "/mnt/scratch")
+                archive ("android", "release", "Linux", "debian-10-amd64multiarchi386-preview", "g++-mingw-w64 gcc-mingw-w64 lib32stdc++6 lib32z1 libz-mingw-w64-dev linux-libc-dev:i386 zlib1g-dev zlib1g-dev:i386 adoptopenjdk-8-hotspot rsync python3-pip", "/mnt/scratch")
             }
         }
     },
-    "iOS (Xcode 11.2)": {
+    "iOS (Xcode 12.4)": {
         throttle(['provisions-ios-toolchain']) {
-            node ("xcode112") {
-                archive ("ios", "release", "Darwin", "", "", "", "xcode112")
+            node ("xcode124") {
+                archive ("ios", "release", "Darwin", "", "", "", "xcode124")
             }
         }
     },
-    "Mac (Xcode 11.2)": {
+    "Mac (Xcode 12.4)": {
         throttle(['provisions-mac-toolchain']) {
-            node ("xcode112") {
-                archive ("mac", "release", "Darwin", "", "", "", "xcode112")
+            node ("xcode124") {
+                archive ("mac", "release", "Darwin", "", "", "", "xcode124")
+            }
+        }
+    },
+    "Mac Catalyst (Xcode 12.4)": {
+        throttle(['provisions-mac-toolchain']) {
+            node ("xcode124") {
+                archive ("maccat", "release", "Darwin", "", "", "", "xcode124")
             }
         }
     },
     "WASM Linux": {
+        if (monoBranch != 'master') {
+            echo "Skipping WASM build on non-master branch."
+            return
+        }
         throttle(['provisions-wasm-toolchain']) {
             node ("ubuntu-1804-amd64") {
                 archive ("wasm", "release", "Linux", "ubuntu-1804-amd64-preview", "npm dotnet-sdk-2.1 nuget openjdk-8-jre python3-pip")

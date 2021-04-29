@@ -85,6 +85,7 @@
 #include <mono/utils/mono-io-portability.h>
 #include <mono/utils/w32api.h>
 #include <mono/utils/mono-errno.h>
+#include <mono/utils/mono-once.h>
 #include <mono/utils/mono-error-internals.h>
 #include <mono/utils/mono-threads-coop.h>
 #include "object-internals.h"
@@ -594,6 +595,8 @@ process_set_name (MonoW32HandleProcess *process_handle)
 	}
 }
 
+static mono_once_t init_state = MONO_ONCE_INIT;
+
 void
 mono_w32process_init (void)
 {
@@ -615,6 +618,7 @@ mono_w32process_init (void)
 	g_assert (current_process != INVALID_HANDLE_VALUE);
 
 	mono_coop_mutex_init (&processes_mutex);
+	mono_once (&init_state, &mono_w32process_platform_init_once);
 }
 
 void
@@ -937,6 +941,7 @@ mono_w32process_module_get_filename (gpointer handle, gpointer module, gunichar2
 		return FALSE;
 
 	proc_path = mono_unicode_from_external (path, &bytes);
+
 	if (proc_path == NULL) {
 		g_free (path);
 		return FALSE;
@@ -2023,6 +2028,9 @@ ves_icall_System_Diagnostics_Process_ShellExecuteEx_internal (MonoW32ProcessStar
 
 		static char *handler;
 		static gunichar2 *handler_utf16;
+#ifndef HOST_DARWIN
+		gboolean finished = FALSE;
+#endif
 
 		if (handler_utf16 == (gunichar2 *)-1) {
 			ret = FALSE;
@@ -2048,6 +2056,7 @@ ves_icall_System_Diagnostics_Process_ShellExecuteEx_internal (MonoW32ProcessStar
 				if (handler == NULL){
 					handler_utf16 = (gunichar2 *) -1;
 					ret = FALSE;
+					finished = TRUE;
 				} else {
 					/* kfmclient needs exec argument */
 					char *old = handler;
@@ -2058,9 +2067,8 @@ ves_icall_System_Diagnostics_Process_ShellExecuteEx_internal (MonoW32ProcessStar
 			}
 		}
 		MONO_EXIT_GC_SAFE;
-		if (ret == FALSE){
+		if (finished)
 			goto done;
-		}
 #endif
 		handler_utf16 = g_utf8_to_utf16 (handler, -1, NULL, NULL, NULL);
 		g_free (handler);

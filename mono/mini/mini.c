@@ -2248,6 +2248,8 @@ mono_codegen (MonoCompile *cfg)
 		code = (guint8 *)mono_domain_code_reserve (code_domain, cfg->code_size + cfg->thunk_area + unwindlen);
 	}
 
+	mono_codeman_enable_write ();
+
 	if (cfg->thunk_area) {
 		cfg->thunks_offset = cfg->code_size + unwindlen;
 		cfg->thunks = code + cfg->thunks_offset;
@@ -2339,6 +2341,9 @@ mono_codegen (MonoCompile *cfg)
 	} else {
 		mono_domain_code_commit (code_domain, cfg->native_code, cfg->code_size, cfg->code_len);
 	}
+
+	mono_codeman_disable_write ();
+
 	MONO_PROFILER_RAISE (jit_code_buffer, (cfg->native_code, cfg->code_len, MONO_PROFILER_CODE_BUFFER_METHOD, cfg->method));
 	
 	mono_arch_flush_icache (cfg->native_code, cfg->code_len);
@@ -2844,7 +2849,6 @@ insert_safepoint (MonoCompile *cfg, MonoBasicBlock *bblock)
 	} else if (bblock == cfg->bb_entry) {
 		mono_bblock_insert_after_ins (bblock, bblock->last_ins, poll_addr);
 		mono_bblock_insert_after_ins (bblock, poll_addr, ins);
-
 	} else {
 		mono_bblock_insert_before_ins (bblock, NULL, poll_addr);
 		mono_bblock_insert_after_ins (bblock, poll_addr, ins);
@@ -3047,6 +3051,23 @@ init_backend (MonoBackend *backend)
 #ifdef MONO_ARCH_HAVE_OPTIMIZED_DIV
 	backend->optimized_div = 1;
 #endif
+#ifdef MONO_ARCH_FORCE_FLOAT32
+	backend->force_float32 = 1;
+#endif
+}
+
+static gboolean
+is_simd_supported (MonoCompile *cfg)
+{
+	// FIXME: Clean this up
+#ifdef TARGET_WASM
+	if ((mini_get_cpu_features (cfg) & MONO_CPU_WASM_SIMD) == 0)
+		return FALSE;
+#else
+	if (cfg->llvm_only)
+		return FALSE;
+#endif
+	return TRUE;
 }
 
 /*
@@ -3132,6 +3153,9 @@ mini_method_compile (MonoMethod *method, guint32 opts, MonoDomain *domain, JitFl
 #ifndef MONO_ARCH_FLOAT32_SUPPORTED
 	opts &= ~MONO_OPT_FLOAT32;
 #endif
+	if (current_backend->force_float32)
+		/* Force float32 mode on newer platforms */
+		opts |= MONO_OPT_FLOAT32;
 
  restart_compile:
 	if (method_is_gshared) {
@@ -3163,6 +3187,7 @@ mini_method_compile (MonoMethod *method, guint32 opts, MonoDomain *domain, JitFl
 	cfg->llvm_only = (flags & JIT_FLAG_LLVM_ONLY) != 0;
 	cfg->interp = (flags & JIT_FLAG_INTERP) != 0;
 	cfg->use_current_cpu = (flags & JIT_FLAG_USE_CURRENT_CPU) != 0;
+	cfg->self_init = (flags & JIT_FLAG_SELF_INIT) != 0;
 	cfg->backend = current_backend;
 
 	if (cfg->method->wrapper_type == MONO_WRAPPER_ALLOC) {
@@ -3199,7 +3224,7 @@ mini_method_compile (MonoMethod *method, guint32 opts, MonoDomain *domain, JitFl
 	if (!mono_debug_count ())
 		cfg->opt &= ~MONO_OPT_FLOAT32;
 	*/
-	if (cfg->llvm_only)
+	if (!is_simd_supported (cfg))
 		cfg->opt &= ~MONO_OPT_SIMD;
 	cfg->r4fp = (cfg->opt & MONO_OPT_FLOAT32) ? 1 : 0;
 	cfg->r4_stack_type = cfg->r4fp ? STACK_R4 : STACK_R8;
@@ -4110,6 +4135,11 @@ mono_jit_compile_method_inner (MonoMethod *method, MonoDomain *target_domain, in
 	}
 
 	mono_domain_lock (target_domain);
+
+	if (mono_stats_method_desc && mono_method_desc_full_match (mono_stats_method_desc, method)) {
+		g_printf ("Printing runtime stats at method: %s\n", mono_method_get_full_name (method));
+		mono_runtime_print_stats ();
+	}
 
 	/* Check if some other thread already did the job. In this case, we can
        discard the code this thread generated. */

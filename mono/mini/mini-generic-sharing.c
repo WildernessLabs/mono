@@ -905,6 +905,7 @@ class_get_rgctx_template_oti (MonoClass *klass, int type_argc, guint32 slot, gbo
 	}
 }
 
+// FIXME Consolidate the multiple functions named get_method_nofail.
 static MonoMethod*
 get_method_nofail (MonoClass *klass, const char *method_name, int num_params, int flags)
 {
@@ -1168,6 +1169,8 @@ get_wrapper_shared_vtype (MonoType *t)
 	if ((mono_class_get_flags (klass) & TYPE_ATTRIBUTE_LAYOUT_MASK) != TYPE_ATTRIBUTE_SEQUENTIAL_LAYOUT)
 		return NULL;
 	mono_class_setup_fields (klass);
+	if (mono_class_has_failure (klass))
+		return NULL;
 
 	int num_fields = mono_class_get_field_count (klass);
 	MonoClassField *klass_fields = m_class_get_fields (klass);
@@ -1178,6 +1181,9 @@ get_wrapper_shared_vtype (MonoType *t)
 		if (field->type->attrs & (FIELD_ATTRIBUTE_STATIC | FIELD_ATTRIBUTE_HAS_FIELD_RVA))
 			continue;
 		MonoType *ftype = get_wrapper_shared_type_full (field->type, TRUE);
+		if (m_class_is_byreflike (mono_class_from_mono_type_internal (ftype)))
+			/* Cannot inflate generic params with byreflike types */
+			return NULL;
 		args [findex ++] = ftype;
 		if (findex >= 16)
 			break;
@@ -2253,6 +2259,21 @@ instantiate_info (MonoDomain *domain, MonoRuntimeGenericContextInfoTemplate *oti
 		return data;
 	case MONO_RGCTX_INFO_FIELD_OFFSET: {
 		MonoClassField *field = (MonoClassField *)data;
+
+		if (mono_class_field_is_special_static (field)) {
+			gpointer addr;
+
+			mono_class_vtable_checked (domain, field->parent, error);
+			mono_error_assert_ok (error);
+
+			/* Return the TLS offset */
+			g_assert (domain->special_static_fields);
+			mono_domain_lock (domain);
+			addr = g_hash_table_lookup (domain->special_static_fields, field);
+			mono_domain_unlock (domain);
+			g_assert (addr);
+			return (guint8*)addr + 1;
+		}
 
 		/* The value is offset by 1 */
 		if (m_class_is_valuetype (field->parent) && !(field->type->attrs & FIELD_ATTRIBUTE_STATIC))
@@ -3875,11 +3896,14 @@ shared_gparam_equal (gconstpointer ka, gconstpointer kb)
 MonoType*
 mini_get_shared_gparam (MonoType *t, MonoType *constraint)
 {
+	MonoImageSet *set;
 	MonoGenericParam *par = t->data.generic_param;
 	MonoGSharedGenericParam *copy, key;
 	MonoType *res;
 	MonoImage *image = NULL;
 	char *name;
+
+	set = mono_metadata_merge_image_sets (mono_metadata_get_image_set_for_type (t), mono_metadata_get_image_set_for_type (constraint));
 
 	memset (&key, 0, sizeof (key));
 	key.parent = par;
@@ -3892,23 +3916,24 @@ mini_get_shared_gparam (MonoType *t, MonoType *constraint)
 	 * Need a cache to ensure the newly created gparam
 	 * is unique wrt T/CONSTRAINT.
 	 */
-	mono_image_lock (image);
-	if (!image->gshared_types) {
-		image->gshared_types_len = MONO_TYPE_INTERNAL;
-		image->gshared_types = g_new0 (GHashTable*, image->gshared_types_len);
+	mono_image_set_lock (set);
+	if (!set->gshared_types) {
+		set->gshared_types_len = MONO_TYPE_INTERNAL;
+		set->gshared_types = g_new0 (GHashTable*, set->gshared_types_len);
 	}
-	if (!image->gshared_types [constraint->type])
-		image->gshared_types [constraint->type] = g_hash_table_new (shared_gparam_hash, shared_gparam_equal);
-	res = (MonoType *)g_hash_table_lookup (image->gshared_types [constraint->type], &key);
-	mono_image_unlock (image);
+	if (!set->gshared_types [constraint->type])
+		set->gshared_types [constraint->type] = g_hash_table_new (shared_gparam_hash, shared_gparam_equal);
+	res = (MonoType *)g_hash_table_lookup (set->gshared_types [constraint->type], &key);
+	mono_image_set_unlock (set);
 	if (res)
 		return res;
-	copy = (MonoGSharedGenericParam *)mono_image_alloc0 (image, sizeof (MonoGSharedGenericParam));
+	copy = (MonoGSharedGenericParam *)mono_image_set_alloc0 (set, sizeof (MonoGSharedGenericParam));
 	memcpy (&copy->param, par, sizeof (MonoGenericParamFull));
 	copy->param.info.pklass = NULL;
-	constraint = mono_metadata_type_dup (image, constraint);
+	// FIXME:
+	constraint = mono_metadata_type_dup (NULL, constraint);
 	name = get_shared_gparam_name (constraint->type, ((MonoGenericParamFull*)copy)->info.name);
-	copy->param.info.name = mono_image_strdup (image, name);
+	copy->param.info.name = mono_image_set_strdup (set, name);
 	g_free (name);
 
 	copy->param.owner = par->owner;
@@ -3919,12 +3944,10 @@ mini_get_shared_gparam (MonoType *t, MonoType *constraint)
 	res = mono_metadata_type_dup (NULL, t);
 	res->data.generic_param = (MonoGenericParam*)copy;
 
-	if (image) {
-		mono_image_lock (image);
-		/* Duplicates are ok */
-		g_hash_table_insert (image->gshared_types [constraint->type], copy, res);
-		mono_image_unlock (image);
-	}
+	mono_image_set_lock (set);
+	/* Duplicates are ok */
+	g_hash_table_insert (set->gshared_types [constraint->type], copy, res);
+	mono_image_set_unlock (set);
 
 	return res;
 }

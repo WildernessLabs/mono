@@ -220,7 +220,6 @@ unlock_recursive (void)
 static void
 binary_protocol_flush_buffer (BinaryProtocolBuffer *buffer)
 {
-	ssize_t ret;
 	size_t to_write = buffer->index;
 	size_t written = 0;
 	g_assert (buffer->index > 0);
@@ -231,7 +230,7 @@ binary_protocol_flush_buffer (BinaryProtocolBuffer *buffer)
 		if (WriteFile (binary_protocol_file, buffer->buffer + written, to_write - written, &tmp_written, NULL))
 			written += tmp_written;
 #elif defined(HAVE_UNISTD_H)
-		ret = write (binary_protocol_file, buffer->buffer + written, to_write - written);
+		ssize_t ret = write (binary_protocol_file, buffer->buffer + written, to_write - written);
 		if (ret >= 0)
 			written += ret;
 		else if (errno == EINTR)
