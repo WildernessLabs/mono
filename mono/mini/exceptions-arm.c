@@ -43,10 +43,10 @@
 #include "mono/utils/mono-tls-inline.h"
 
 #if defined(__NuttX__)
-const int pc_offset = MONO_STRUCT_OFFSET (MonoContext, pc);
-const int reg_offset = MONO_STRUCT_OFFSET (MonoContext, regs);
-const int reg_sp_offset = MONO_STRUCT_OFFSET (MonoContext, regs) + (ARMREG_SP * sizeof (target_mgreg_t));
-const int freg_offset =  MONO_STRUCT_OFFSET (MonoContext, fregs);
+const int pc_offset = MONO_STRUCT_OFFSET_CONSTANT (MonoContext, pc);
+const int reg_offset = MONO_STRUCT_OFFSET_CONSTANT (MonoContext, regs);
+const int reg_sp_offset = MONO_STRUCT_OFFSET_CONSTANT (MonoContext, regs) + (ARMREG_SP * sizeof (target_mgreg_t));
+const int freg_offset =  MONO_STRUCT_OFFSET_CONSTANT (MonoContext, fregs);
 
 void mono_thumb_restore_context (void) __attribute__ ((naked));
 void mono_thumb_restore_context (void)

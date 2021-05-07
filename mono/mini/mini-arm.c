@@ -793,6 +793,9 @@ mono_arch_cpu_init (void)
 	mono_type_set_alignment (MONO_TYPE_I8, i8_align);
 #endif
 #endif
+#if defined(__NuttX__)
+	putenv("LD_LIBRARY_PATH=/meadow0/");
+#endif
 }
 
 /*

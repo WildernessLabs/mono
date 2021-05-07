@@ -1146,10 +1146,8 @@ arch_init (MonoAotCompile *acfg)
 
 #if defined(ARM_FPU_VFP_HARD)
 		g_string_append (acfg->llc_args, " -mattr=+vfp2,-neon,+d16 -float-abi=hard");
-		g_string_append (acfg->as_args, " -mfpu=vfp3");
 #elif defined(ARM_FPU_VFP)
 		g_string_append (acfg->llc_args, " -mattr=+vfp2,-neon,+d16");
-		g_string_append (acfg->as_args, " -mfpu=vfp3");
 #else
 		g_string_append (acfg->llc_args, " -mattr=+soft-float");
 #endif
@@ -9841,7 +9839,7 @@ emit_llvm_file (MonoAotCompile *acfg)
 	if (acfg->aot_opts.llvm_only) {
 		/* Use the stock clang from xcode */
 		// FIXME: arch
-		command = g_strdup_printf ("%s -fexceptions -fpic -O2 -fno-optimize-sibling-calls -Wno-override-module -c -o \"%s\" \"%s.opt.bc\"", acfg->aot_opts.clangxx, acfg->llvm_ofile, acfg->tmpbasename);
+		command = g_strdup_printf ("%s -fexceptions -fpic -O2 -fno-optimize-sibling-calls -Wno-override-module --target=%s %s -c -o \"%s\" \"%s.opt.bc\"", acfg->aot_opts.clangxx, acfg->aot_opts.mtriple, acfg->aot_opts.llvm_llc, acfg->llvm_ofile, acfg->tmpbasename);
 
 		aot_printf (acfg, "Executing clang: %s\n", command);
 		if (execute_system (command) != 0)
@@ -9881,6 +9879,9 @@ emit_llvm_file (MonoAotCompile *acfg)
 		g_string_append_printf (acfg->llc_args, " -relocation-model=static");
 	else
 		g_string_append_printf (acfg->llc_args, " -relocation-model=pic");
+#endif
+#if defined(__NuttX__)
+        g_string_append (acfg->llc_args, " -meabi=gnu -exception-model=dwarf");
 #endif
 
 	if (acfg->llvm_owriter) {
@@ -12064,10 +12065,18 @@ compile_asm (MonoAotCompile *acfg)
 #define AS_OPTIONS ""
 #endif
 
+#if defined(TARGET_ARM) && defined(MONO_CROSS_COMPILE)
+# define STRIP_NAME "arm-none-eabi-strip"
+#else
+# define STRIP_NAME "strip"
+#endif
+
 #if defined(TARGET_OSX)
 #define AS_NAME "clang"
 #elif defined(TARGET_WIN32_MSVC)
 #define AS_NAME "clang.exe"
+#elif defined(TARGET_ARM) && defined(MONO_CROSS_COMPILE)
+#define AS_NAME "arm-none-eabi-as"
 #else
 #define AS_NAME "as"
 #endif
@@ -12081,6 +12090,14 @@ compile_asm (MonoAotCompile *acfg)
 #if defined(sparc)
 #define LD_NAME "ld"
 #define LD_OPTIONS "-shared -G -Bsymbolic"
+#elif defined(TARGET_ARM)
+#if defined(MONO_CROSS_COMPILE)
+#define LD_NAME "arm-none-eabi-ld"
+#define LD_OPTIONS "-shared -G -Bsymbolic -z max-page-size=1024"
+#else
+#define LD_NAME "ld"
+#define LD_OPTIONS "-shared -G -Bsymbolic"
+#endif
 #elif defined(__ppc__) && defined(TARGET_MACH)
 #define LD_NAME "gcc"
 #define LD_OPTIONS "-dynamiclib -Wl,-Bsymbolic"
@@ -12130,6 +12147,11 @@ compile_asm (MonoAotCompile *acfg)
 
 #ifdef TARGET_OSX
 	g_string_append (acfg->as_args, "-c -x assembler");
+#endif
+
+#ifdef TARGET_ARM
+	if (acfg->aot_opts.mtriple && strstr (acfg->aot_opts.mtriple, "thumb"))
+		g_string_append (acfg->as_args, "-mthumb -k");
 #endif
 
 	command = g_strdup_printf ("\"%s%s\" %s %s -o %s %s", tool_prefix, AS_NAME, AS_OPTIONS,
@@ -12211,6 +12233,11 @@ compile_asm (MonoAotCompile *acfg)
 		g_free (args);
 	}
 #endif
+
+#ifdef __NuttX__
+	g_string_append_printf (command, " --start-group libsupc++.a libuc.a libfs.a libsched.a --end-group");
+#endif
+
 	aot_printf (acfg, "Executing the native linker: %s\n", command);
 	if (execute_system (command) != 0) {
 		g_free (tmp_outfile_name);
@@ -12233,7 +12260,7 @@ compile_asm (MonoAotCompile *acfg)
 	 * gas generates 'mapping symbols' each time code and data is mixed, which 
 	 * happens a lot in emit_and_reloc_code (), so we need to get rid of them.
 	 */
-	command = g_strdup_printf ("\"%sstrip\" --strip-symbol=\\$a --strip-symbol=\\$d %s", tool_prefix, wrap_path(tmp_outfile_name));
+	command = g_strdup_printf ("\"%s"STRIP_NAME"\" --strip-symbol=\\$a --strip-symbol=\\$d %s", tool_prefix, wrap_path(tmp_outfile_name));
 	aot_printf (acfg, "Stripping the binary: %s\n", command);
 	if (execute_system (command) != 0) {
 		g_free (tmp_outfile_name);

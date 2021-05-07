@@ -3491,7 +3491,10 @@ mini_get_vtable_trampoline (MonoVTable *vt, int slot_index)
 
 	if (mono_use_interpreter) {
 		mono_class_setup_vtable (vt->klass);
-		return NULL;
+		if (mono_llvm_only)
+			return mini_llvmonly_get_vtable_trampoline (vt, slot_index, index);
+		else
+			return NULL;
 	}
 
 	if (mono_llvm_only)

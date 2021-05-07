@@ -1946,18 +1946,13 @@ get_call_table_entry (void *table, int index, int entry_size)
 {
 #if defined(TARGET_ARM)
 	guint32 *ins_addr;
-	guint32 ins;
 	gint32 offset;
+	guint32 ins;
 
-	if (entry_size == 8) {
-		ins_addr = (guint32 *)table + (index * 2);
-		g_assert ((guint32) *ins_addr == (guint32 ) 0xe51ff004); // ldr pc, =<label>
-		return *((char **) (ins_addr + 1));
-	}
-
-	g_assert (entry_size == 4);
 	ins_addr = (guint32*)table + index;
 	ins = *ins_addr;
+# ifndef __NuttX__
+
 	if ((ins >> ARMCOND_SHIFT) == ARMCOND_NV) {
 		/* blx */
 		offset = (((int)(((ins & 0xffffff) << 1) | ((ins >> 24) & 0x1))) << 7) >> 7;
@@ -1968,6 +1963,39 @@ get_call_table_entry (void *table, int index, int entry_size)
 		offset = (((int)ins & 0xffffff) << 8) >> 8;
 		return (char*)ins_addr + (offset * 4) + 8;
 	}
+# else
+#  define THUMB_BL_MASK		0xd000f800
+#  define THUMB_BL_VALUE	0xd000f000
+struct {
+	uint16_t imm1:10;	/* Immediate top 10 bits */
+	uint16_t sign:1; 	/* Sign bit */
+        uint16_t op1:5;		/* opcode stuff */
+        uint16_t imm2:11;	/* Immediate bottom 11 bits */
+        uint16_t j2:1;          /* J2 bit */
+        uint16_t x:1;           /* Ignore */
+        uint16_t j1:1;          /* J2 bit */
+	uint16_t y:2;		/* Ignore */
+} *bl_s;
+
+	if (entry_size == 8) {
+		ins_addr = (guint32 *)table + (index * 2);
+		g_assert ((guint32) *ins_addr == (guint32 ) 0xe51ff004); // ldr pc, =<label>
+		return *((char **) (ins_addr + 1));
+	}
+
+	g_assert (entry_size == 4);
+	if ((ins & THUMB_BL_MASK) == THUMB_BL_VALUE) {
+		/* bl */
+		bl_s = (void *) ins_addr;
+		offset = (uint32_t)(bl_s->imm1 << 12) + (bl_s->imm2 << 1);
+		if (bl_s->sign) 
+			offset |= 0xff000000;
+		offset |= (!(bl_s->j2 ^ bl_s->sign) << 22) | (!(bl_s->j1 ^ bl_s->sign) << 23);
+		offset += sizeof(*bl_s);
+		return (char *)ins_addr + offset;
+	}
+        return NULL;
+# endif
 #elif defined(TARGET_ARM64)
 	return mono_arch_get_call_target ((guint8*)table + (index * 4) + 4);
 #elif defined(TARGET_X86) || defined(TARGET_AMD64)
@@ -2181,6 +2209,12 @@ load_aot_module (MonoAssemblyLoadContext *alc, MonoAssembly *assembly, gpointer 
 	if (!info) {
 		find_symbol (sofile, globals, "mono_aot_version", (gpointer *) &version_symbol);
 		find_symbol (sofile, globals, "mono_aot_file_info", (gpointer*)&info);
+	}
+	if (!info) {
+		aot_name = g_strdup_printf ("%s%s", assembly->image->name, MONO_SOLIB_EXT);
+		g_error ("Failed to load AOT module '%s' in aot-only mode.\n", aot_name);
+		g_free (aot_name);
+		return;
 	}
 
 	// Copy aotid to MonoImage
