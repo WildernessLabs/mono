@@ -576,7 +576,7 @@ convert_socketflags (gint32 sflags)
 #undef IP_DROP_MEMBERSHIP
 #undef IP_PKTINFO
 #undef IP_DONTFRAGMENT
-#undef IP_MTU_DISCOVER
+#undef IPV6_MTU_DISCOVER
 
 // define in netinet/in.h
 // #define IP_OPTIONS			17
@@ -764,9 +764,9 @@ convert_sockopt_level_and_name (MonoSocketOptionLevel mono_level, MonoSocketOpti
 #ifdef HAVE_IP_DONTFRAGMENT
 			*system_name = IP_DONTFRAGMENT;
 			break;
-#elif defined HAVE_IP_MTU_DISCOVER
+#elif defined HAVE_IPV6_MTU_DISCOVER
 			/* Not quite the same */
-			*system_name = IP_MTU_DISCOVER;
+			*system_name = IPV6_MTU_DISCOVER;
 			break;
 #else
 			/* If the flag is not available on this system, we can ignore this error */
@@ -2372,7 +2372,7 @@ ves_icall_System_Net_Sockets_Socket_SetSocketOption_internal (gsize sock, gint32
 			ret = mono_w32socket_setsockopt (sock, system_level, system_name, &int_val, sizeof (int_val));
 			break;
 		case SocketOptionName_DontFragment:
-#ifdef HAVE_IP_MTU_DISCOVER
+#ifdef HAVE_IPV6_MTU_DISCOVER
 			/* Fiddle with the value slightly if we're
 			 * turning DF on
 			 */
@@ -2389,8 +2389,8 @@ ves_icall_System_Net_Sockets_Socket_SetSocketOption_internal (gsize sock, gint32
 	if (ret == SOCKET_ERROR) {
 		*werror = mono_w32socket_get_last_error ();
 
-#ifdef HAVE_IP_MTU_DISCOVER
-		if (system_name == IP_MTU_DISCOVER) {
+#ifdef HAVE_IPV6_MTU_DISCOVER
+		if (system_name == IPV6_MTU_DISCOVER) {
 			switch (system_level) {
 			case IP_PMTUDISC_DONT:
 			case IP_PMTUDISC_WANT:
@@ -2405,7 +2405,7 @@ ves_icall_System_Net_Sockets_Socket_SetSocketOption_internal (gsize sock, gint32
 			case IP_PMTUDISC_OMIT:
 #endif
 				/*
-				 * This happens if HAVE_IP_MTU_DISCOVER is set but the OS
+				 * This happens if HAVE_IPV6_MTU_DISCOVER is set but the OS
 				 * doesn't actually understand it. The only OS that this is
 				 * known to happen on currently is Windows Subsystem for Linux
 				 * (newer versions have been fixed to recognize it). Just

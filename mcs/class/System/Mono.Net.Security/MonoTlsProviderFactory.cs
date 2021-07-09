@@ -274,6 +274,8 @@ namespace Mono.Net.Security
 #if MONO_FEATURE_MBEDTLS
 			mbedTlsEntry = new Tuple<Guid,String> (MbedTlsId, typeof (Mono.MbedTls.MbedTlsProvider).FullName);
 			providerRegistration.Add ("mbedtls", btlsEntry);
+#else
+#error Configuration error - Meadow build should always be using the MbedTLS provider.
 #endif
 
 			var defaultEntry = appleTlsEntry ?? btlsEntry ?? mbedTlsEntry;
