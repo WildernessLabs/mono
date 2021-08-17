@@ -1951,7 +1951,7 @@ get_call_table_entry (void *table, int index, int entry_size)
 
 	ins_addr = (guint32*)table + index;
 	ins = *ins_addr;
-# ifndef __NuttX__
+# ifndef __THUMB__
 
 	if ((ins >> ARMCOND_SHIFT) == ARMCOND_NV) {
 		/* blx */
@@ -1964,33 +1964,15 @@ get_call_table_entry (void *table, int index, int entry_size)
 		return (char*)ins_addr + (offset * 4) + 8;
 	}
 # else
-#  define THUMB_BL_MASK		0xd000f800
-#  define THUMB_BL_VALUE	0xd000f000
-struct {
-	uint16_t imm1:10;	/* Immediate top 10 bits */
-	uint16_t sign:1; 	/* Sign bit */
-        uint16_t op1:5;		/* opcode stuff */
-        uint16_t imm2:11;	/* Immediate bottom 11 bits */
-        uint16_t j2:1;          /* J2 bit */
-        uint16_t x:1;           /* Ignore */
-        uint16_t j1:1;          /* J2 bit */
-	uint16_t y:2;		/* Ignore */
-} *bl_s;
-
-	if (entry_size == 8) {
-		ins_addr = (guint32 *)table + (index * 2);
-		g_assert ((guint32) *ins_addr == (guint32 ) 0xe51ff004); // ldr pc, =<label>
-		return *((char **) (ins_addr + 1));
-	}
-
 	g_assert (entry_size == 4);
-	if ((ins & THUMB_BL_MASK) == THUMB_BL_VALUE) {
+	if ((ins & BL_TEMPLATE) == BL_TEMPLATE) {
+		brl32_t *bl_s;
 		/* bl */
 		bl_s = (void *) ins_addr;
-		offset = (uint32_t)(bl_s->imm1 << 12) + (bl_s->imm2 << 1);
+		offset = (uint32_t)(bl_s->offhi << 12) + (bl_s->offlo << 1);
 		if (bl_s->sign) 
 			offset |= 0xff000000;
-		offset |= (!(bl_s->j2 ^ bl_s->sign) << 22) | (!(bl_s->j1 ^ bl_s->sign) << 23);
+		offset |= (!(bl_s->i2 ^ bl_s->sign) << 22) | (!(bl_s->i1 ^ bl_s->sign) << 23);
 		offset += sizeof(*bl_s);
 		return (char *)ins_addr + offset;
 	}
@@ -2916,10 +2898,14 @@ is_llvm_code (MonoAotModule *amodule, guint8 *code)
 static gboolean
 is_thumb_code (MonoAotModule *amodule, guint8 *code)
 {
+#ifndef __THUMB__
 	if (is_llvm_code (amodule, code) && (amodule->info.flags & MONO_AOT_FILE_FLAG_LLVM_THUMB))
 		return TRUE;
 	else
 		return FALSE;
+#else
+	return TRUE;
+#endif
 }
 
 /*
@@ -5290,7 +5276,11 @@ mono_create_ftnptr_malloc (guint8 *code)
 	ftnptr->env = NULL;
 
 	return ftnptr;
+	return code;
 #else
+# ifdef __THUMB__
+	code = (guint8 *) ((uintptr_t) code | 0x1);
+# endif
 	return code;
 #endif
 }
@@ -5436,6 +5426,9 @@ load_function_full (MonoAotModule *amodule, const char *name, MonoTrampInfo **ou
 		mono_mempool_destroy (mp);
 	}
 
+#ifdef __THUMB__
+	code = (gpointer) ((uintptr_t) code | 0x1);
+#endif
 	return code;
 }
 

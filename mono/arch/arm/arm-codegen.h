@@ -7,6 +7,9 @@
  */
 
 
+#ifdef __THUMB__
+# include <mono/arch/arm/thumb-codegen.h>
+#else
 #ifndef ARM_H
 #define ARM_H
 
@@ -107,6 +110,18 @@ typedef enum {
 #define ARM_ALL_ARG_REGS \
 	(1 << ARMREG_A1) | (1 << ARMREG_A2) | (1 << ARMREG_A3) | (1 << ARMREG_A4)
 
+/* 
+ * Displacement to use for sequences like
+ *  ARM_LDR (code, reg, ARMREG_PC, displacement)
+ */
+#define ARMDISP_LDPRC	0
+
+/* 
+ * Displacement to use for OP_VSWITCH
+ *  ARM_LDR (code, ARMREG_PC, r, d, shl)
+ *  ARM_NOP (code)
+ */
+#define ARMDISP_VSWITCH 0
 
 typedef enum {
 	ARMCOND_EQ = 0x0,          /* Equal; Z = 1 */
@@ -1120,9 +1135,81 @@ typedef enum {
 
 #define ARM_STREX_REG(p, rd, rt, rn) ARM_EMIT ((p), ((ARMCOND_AL << 28) | (0xc << 21) | (0x0 << 20) | ((rn) << 16) | ((rd) << 12)) | (0xf << 8) | (0x9 << 4) | ((rt) << 0))
 
+#define ARM_LOAD_RELPC(p, r) \
+	do {							\
+		ARM_LDR_IMM (p, r, ARMREG_PC, 0);		\
+		ARM_B (p, 0);					\
+	} while (0);
+#define ARM_RELPC_OFFSET	8	/* Size of ARM_LOAD_RELPC sequence */
+
+#define ARM_FLOADS_RELPC(p, r) \
+	do {							\
+		ARM_FLDS (p, r, ARMREG_PC, 0);			\
+		ARM_B (p, 0);					\
+	} while (0)
+
+#define ARM_FLOADD_RELPC(p, r) \
+	do {							\
+		ARM_FLDD (p, r, ARMREG_PC, 0);			\
+		ARM_B (p, 1);					\
+	} while (0)
+
+#define ARM_LOAD_REGPC(p, r) 	ARM_LDR_REG_REG (code, r, ARMREG_PC, r)
+
+#define ARM_LOAD_PCOFF(p, r)	ARM_LDR_REG_REG (code, ARMREG_PC, ARMREG_PC, r)
+
+/*
+ * Perform an OP_SWITCH operation
+ */
+#define ARM_SWITCH(p, r)                                                                \
+        do {                                                                            \
+                ARM_LDR_REG_REG_SHIFT(p, ARMREG_PC, ARMREG_PC, r, ARMSHIFT_LSL, 2);     \
+                ARM_NOP(p);                                                             \
+        } while (0)
+
+#define ARM_JUMP_REG(p, r, t)					\
+	do {							\
+		if (t)						\
+			ARM_BX (p, r);				\
+		else						\
+			ARM_MOV_REG_REG (code, ARMREG_PC, r);	\
+	} while (0)
+
+#define ARM_JUMP_OFFSET(p, r, o)	ARM_LDR_IMM (code, ARMREG_PC, r, o)
+
+#define ARM_CALL_TARGET(c)
+
+/*
+ * Unneeded alignment checker
+ */
+#define ARM_CNOP(c)
+
+/*
+ * Offset from PLT for GOT entry
+ */
+#define ARM_PLTOFF	8
+
+#define ARM_THUNK(p, r, t)					\
+	do {							\
+		ARM_LDR_IMM (p, r, ARMREG_PC, 0);		\
+		if (t)						\
+			ARM_BX (code, ARMREG_IP);		\
+		else						\
+			ARM_MOV_REG_REG (code, r, ARMREG_IP);	\
+	} while (0)
+
+/*
+ * Thunk layout
+ */
+typedef struct {
+	guint32 ldr;		/* LDR */
+	guint32 jump;		/* Jump */
+	guint32 tgt;		/* Target */
+} arm_thunk_t;
+		
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* ARM_H */
-
+#endif

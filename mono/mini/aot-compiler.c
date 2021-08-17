@@ -1596,10 +1596,14 @@ arch_emit_direct_call (MonoAotCompile *acfg, const char *target, gboolean extern
 	*call_size = 5;
 #elif defined(TARGET_ARM)
 	emit_unset_mode (acfg);
+# ifndef __THUMB__
 	if (thumb)
-		fprintf (acfg->fp, "blx %s\n", target);
+		fprintf (acfg->fp, "\tblx\t%s\n", target);
 	else
-		fprintf (acfg->fp, "bl %s\n", target);
+		fprintf (acfg->fp, "\tbl\t%s\n", target);
+# else
+	fprintf (acfg->fp, "\tbl.w\t%s\n", target);
+# endif
 	*call_size = 4;
 #elif defined(TARGET_ARM64)
 	arm64_emit_direct_call (acfg, target, external, thumb, ji, call_size);
@@ -1822,10 +1826,18 @@ arch_emit_plt_entry (MonoAotCompile *acfg, const char *got_symbol, int offset, i
 		guint8 *code;
 
 		code = buf;
-		ARM_LDR_IMM (code, ARMREG_IP, ARMREG_PC, 0);
+# ifndef __THUMB__
+		ARM_LDR_IMM (code, ARMREG_IP, ARMREG_PC, ARMDISP_LDRPC);
 		ARM_LDR_REG_REG (code, ARMREG_PC, ARMREG_PC, ARMREG_IP);
 		emit_bytes (acfg, buf, code - buf);
 		emit_symbol_diff (acfg, got_symbol, ".", offset - 4);
+# else
+		ARM_LDR_IMM (code, ARMREG_IP, ARMREG_PC, ARMDISP_LDRPC + 4);
+		ARM_LOAD_PCOFF (code, ARMREG_IP);
+		ARM_NOP (code);
+		emit_bytes (acfg, buf, code - buf);
+		emit_symbol_diff (acfg, got_symbol, ".", offset + 4);
+# endif
 		/* Used by mono_aot_get_plt_info_offset */
 		emit_int32 (acfg, info_offset);
 #elif defined(TARGET_ARM64)
@@ -2217,7 +2229,7 @@ arch_emit_specific_trampoline (MonoAotCompile *acfg, int offset, int *tramp_size
 	*tramp_size = 20;
 	code = buf;
 	ARM_PUSH (code, 0x5fff);
-	ARM_LDR_IMM (code, ARMREG_R1, ARMREG_PC, 4);
+	ARM_LDR_IMM (code, ARMREG_R1, ARMREG_PC, 4 + ARMDISP_LDRPC);
 	/* Load the value from the GOT */
 	ARM_LDR_REG_REG (code, ARMREG_R1, ARMREG_PC, ARMREG_R1);
 	/* Branch to it */
@@ -2417,13 +2429,23 @@ arch_emit_static_rgctx_trampoline (MonoAotCompile *acfg, int offset, int *tramp_
 	*tramp_size = 24;
 	code = buf;
 	/* Load rgctx value */
-	ARM_LDR_IMM (code, ARMREG_IP, ARMREG_PC, 8);
+# ifndef __THUMB__
+	ARM_LDR_IMM (code, ARMREG_IP, ARMREG_PC, 8 + ARMDISP_LDRPC);
 	ARM_LDR_REG_REG (code, MONO_ARCH_RGCTX_REG, ARMREG_PC, ARMREG_IP);
 	/* Load branch addr + branch */
-	ARM_LDR_IMM (code, ARMREG_IP, ARMREG_PC, 4);
+	ARM_LDR_IMM (code, ARMREG_IP, ARMREG_PC, 4 + ARMDISP_LDRPC);
 	ARM_LDR_REG_REG (code, ARMREG_PC, ARMREG_PC, ARMREG_IP);
-
 	g_assert (code - buf == 16);
+# else
+	ARM_LDR_IMM (code, ARMREG_IP, ARMREG_PC, 12 + ARMDISP_LDRPC);
+	ARM_ADD_REG_REG (code, ARMREG_IP, ARMREG_PC, ARMREG_PC);
+	ARM_LDR_IMM (code, MONO_ARCH_RGCTX_REG, ARMREG_IP, 0);
+	/* Load branch addr + branch */
+	ARM_LDR_IMM (code, ARMREG_IP, ARMREG_PC, 8 + ARMDISP_LDRPC);
+	ARM_ADD_REG_REG (code, ARMREG_IP, ARMREG_PC, ARMREG_PC);
+	ARM_LDR_IMM (code, ARMREG_PC, ARMREG_IP, 0);
+	g_assert (code - buf < 22);
+# endif
 
 	/* Emit it */
 	emit_bytes (acfg, buf, code - buf);
@@ -2651,7 +2673,7 @@ arch_emit_imt_trampoline (MonoAotCompile *acfg, int offset, int *tramp_size)
 	ARM_PUSH (code, (1 << ARMREG_R0)|(1 << ARMREG_R1)|(1 << ARMREG_R2));
 	labels [0] = code;
 	/* Load the parameter from the GOT */
-	ARM_LDR_IMM (code, ARMREG_R0, ARMREG_PC, 0);
+	ARM_LDR_IMM (code, ARMREG_R0, ARMREG_PC, ARMDISP_LDRPC);
 	ARM_LDR_REG_REG (code, ARMREG_R0, ARMREG_PC, ARMREG_R0);
 
 	labels [1] = code;
@@ -2688,7 +2710,7 @@ arch_emit_imt_trampoline (MonoAotCompile *acfg, int offset, int *tramp_size)
 
 	/* Fixup offset */
 	code2 = labels [0];
-	ARM_LDR_IMM (code2, ARMREG_R0, ARMREG_PC, (code - (labels [0] + 8)));
+	ARM_LDR_IMM (code2, ARMREG_R0, ARMREG_PC, (code - (labels [0] + 8) + ARMDISP_LDRPC));
 
 	emit_bytes (acfg, buf, code - buf);
 	emit_symbol_diff (acfg, acfg->got_symbol, ".", (offset * sizeof (target_mgreg_t)) + (code - (labels [0] + 8)) - 4);
@@ -2806,7 +2828,7 @@ arch_emit_gsharedvt_arg_trampoline (MonoAotCompile *acfg, int offset, int *tramp
 	*tramp_size = 24;
 	code = buf;
 	ARM_PUSH (code, (1 << ARMREG_R0) | (1 << ARMREG_R1) | (1 << ARMREG_R2) | (1 << ARMREG_R3));
-	ARM_LDR_IMM (code, ARMREG_R1, ARMREG_PC, 8);
+	ARM_LDR_IMM (code, ARMREG_R1, ARMREG_PC, 8 + ARMDISP_LDRPC);
 	/* Load the arg value from the GOT */
 	ARM_LDR_REG_REG (code, ARMREG_R0, ARMREG_PC, ARMREG_R1);
 	/* Load the addr from the GOT */
@@ -2845,11 +2867,11 @@ arch_emit_ftnptr_arg_trampoline (MonoAotCompile *acfg, int offset, int *tramp_si
 	code = buf;
 
 	/* Load target address and push it on stack */
-	ARM_LDR_IMM (code, ARMREG_IP, ARMREG_PC, 16);
+	ARM_LDR_IMM (code, ARMREG_IP, ARMREG_PC, 16 + ARMDISP_LDRPC);
 	ARM_LDR_REG_REG (code, ARMREG_IP, ARMREG_PC, ARMREG_IP);
 	ARM_PUSH (code, 1 << ARMREG_IP);
 	/* Load argument in ARMREG_IP */
-	ARM_LDR_IMM (code, ARMREG_IP, ARMREG_PC, 8);
+	ARM_LDR_IMM (code, ARMREG_IP, ARMREG_PC, 8 + ARMDISP_LDRPC);
 	ARM_LDR_REG_REG (code, ARMREG_IP, ARMREG_PC, ARMREG_IP);
 	/* Branch */
 	ARM_POP (code, 1 << ARMREG_PC);
@@ -2898,16 +2920,30 @@ arch_emit_unbox_arbitrary_trampoline (MonoAotCompile *acfg, int offset, int *tra
 
 	label = code;
 	/* Calculate GOT slot */
-	ARM_LDR_IMM (code, ARMREG_IP, ARMREG_PC, 0);
+# ifndef __THUMB__
+	ARM_LDR_IMM (code, ARMREG_IP, ARMREG_PC, ARMDISP_LDRPC);
 	/* Load target addr into PC*/
 	ARM_LDR_REG_REG (code, ARMREG_PC, ARMREG_PC, ARMREG_IP);
-
 	g_assert (code - buf == 12);
 
 	/* Emit it */
 	emit_bytes (acfg, buf, code - buf);
 	emit_symbol_diff (acfg, acfg->got_symbol, ".", (offset * sizeof (target_mgreg_t)) + (code - (label + 8)) - 4);
 	*tramp_size = 4 * 4;
+# else
+	/* Load target addr into PC*/
+	ARM_LDR_IMM (code, ARMREG_IP, ARMREG_PC, 8);
+	ARM_ADD_REG_REG (code, ARMREG_IP, ARMREG_PC, ARMREG_PC);
+	ARM_LDR_IMM (code, ARMREG_PC, ARMREG_IP, 0);
+	ARM_NOP (code);
+	g_assert (code - buf < 12);
+
+	/* Emit it */
+	emit_bytes (acfg, buf, code - buf);
+	emit_symbol_diff (acfg, acfg->got_symbol, ".", (offset * sizeof (target_mgreg_t)) + (code - (label + 8)) - 8);
+	*tramp_size = 24;
+# endif
+
 #else
 	g_error ("NOT IMPLEMENTED: needed for AOT<>interp mixed mode transition");
 #endif
@@ -9993,6 +10029,10 @@ emit_code (MonoAotCompile *acfg)
 	emit_alignment (acfg, 8);
 	emit_label (acfg, symbol);
 	emit_pointer (acfg, acfg->got_symbol);
+#elif defined(__THUMB__)
+	fprintf (acfg->fp, "\t.arch armv7e-m\n");
+	fprintf (acfg->fp, "\t.syntax unified\n");
+	fprintf (acfg->fp, "\t.thumb\n");
 #endif
 
 	/* 
@@ -12260,7 +12300,7 @@ compile_asm (MonoAotCompile *acfg)
 	 * gas generates 'mapping symbols' each time code and data is mixed, which 
 	 * happens a lot in emit_and_reloc_code (), so we need to get rid of them.
 	 */
-	command = g_strdup_printf ("\"%s"STRIP_NAME"\" --strip-symbol=\\$a --strip-symbol=\\$d %s", tool_prefix, wrap_path(tmp_outfile_name));
+	command = g_strdup_printf ("\"%s"STRIP_NAME"\" --strip-symbol=\\$a --strip-symbol=\\$d --strip-symbol=\\$t %s", tool_prefix, wrap_path(tmp_outfile_name));
 	aot_printf (acfg, "Stripping the binary: %s\n", command);
 	if (execute_system (command) != 0) {
 		g_free (tmp_outfile_name);
