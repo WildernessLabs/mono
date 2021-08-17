@@ -3898,7 +3898,7 @@ arm_patch_general (MonoCompile *cfg, MonoDomain *domain, guchar *code, const guc
 				tbits |= 1 << 24;
 			}
 			tmask = ~(1 << 24); /* clear the link bit */
-			g_print ("blx to thumb: target: %p, code: %p, diff: %d, mask: %x\n", target, code, diff, tmask);
+			/*g_print ("blx to thumb: target: %p, code: %p, diff: %d, mask: %x\n", target, code, diff, tmask);*/
 		} else {
 			tbits = 0;
 		}
