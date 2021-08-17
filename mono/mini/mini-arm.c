@@ -7574,7 +7574,7 @@ mono_arch_opcode_supported (int opcode)
 	case OP_ATOMIC_LOAD_R8:
 	case OP_ATOMIC_STORE_R4:
 	case OP_ATOMIC_STORE_R8:
-		return ((v7_supported || thumb2_supported) && IS_VFP;
+		return ((v7_supported || thumb2_supported) && IS_VFP);
 	default:
 		return FALSE;
 	}
