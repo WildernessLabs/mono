@@ -5289,9 +5289,6 @@ mono_create_ftnptr_malloc (guint8 *code)
 	return ftnptr;
 	return code;
 #else
-# ifdef __XHUMB__
-	code = (guint8 *) ((uintptr_t) code | 0x1);
-# endif
 	return CODE_ADDR(code);
 #endif
 }
@@ -5437,9 +5434,6 @@ load_function_full (MonoAotModule *amodule, const char *name, MonoTrampInfo **ou
 		mono_mempool_destroy (mp);
 	}
 
-#ifdef __XHUMB__
-	code = (gpointer) ((uintptr_t) code | 0x1);
-#endif
 	return CODE_ADDR(code);
 }
 

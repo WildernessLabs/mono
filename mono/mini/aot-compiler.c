@@ -1900,7 +1900,7 @@ arch_emit_llvm_plt_entry (MonoAotCompile *acfg, const char *got_symbol, int offs
 	fprintf (acfg->fp, "\tnop\n0:\n");
 	emit_symbol_diff (acfg, got_symbol, ".", offset + 4);
 	emit_int32 (acfg, info_offset);
-#endif
+# endif
 #else
 	g_assert_not_reached ();
 #endif
