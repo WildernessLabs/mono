@@ -41,10 +41,14 @@
 	} while (0)
 # define ARM_CALL_REG_PARM(p, r) 	ARM_CALL_REG(p, r)
 # define ARM_JUMP_REG_PARM(p, r)	p = emit_bx (p, r)
+# define CODE_ADDR(x) (x)
+# define CODE_PTR(x) (x)
 #else
 # define ARM_CALL_REG(p,r)	ARM_BLX_REG(p, r)
 # define ARM_CALL_REG_PARM(p,r)	ARM_BLX_REG_ALIGN (p, r)
 # define ARM_JUMP_REG_PARM(p,r)	ARM_BX_ALIGN (p, r)
+# define CODE_ADDR(x) (typeof(x))((uintptr_t) x | 0x1)
+# define CODE_PTR(x) (typeof(x))((uintptr_t) x & ~1L)
 #endif
 
 void
@@ -140,7 +144,7 @@ branch_for_target_reachable (guint8 *branch, guint8 *target)
 			return (ARMCOND_AL << ARMCOND_SHIFT) | (ARM_BR_TAG) | ((diff >> 2) & ~0xff000000);
 	}
 #else
-	gint diff = target - branch;
+	gint diff = CODE_PTR(target) - CODE_PTR(branch);
 	g_assert ((diff & 1) == 0);
 	if ((diff >= -16777216) && (diff <= 16777215)) {
 		guint32 code;
@@ -481,7 +485,7 @@ mono_arch_create_generic_trampoline (MonoTrampolineType tramp_type, MonoTrampInf
 	tramp_name = mono_get_generic_trampoline_name (tramp_type);
 	*info = mono_tramp_info_create (tramp_name, buf, code - buf, ji, unwind_ops);
 
-	return buf;
+	return CODE_ADDR(buf);
 }
 
 #define SPEC_TRAMP_SIZE 24
@@ -543,7 +547,7 @@ mono_arch_create_specific_trampoline (gpointer arg1, MonoTrampolineType tramp_ty
 		code += 8;
 	} else {
 		int off;
-		guint32 *ldr = code;
+		guint32 *ldr = (guint32 *) code;
 
 		code += 4;				/* Spot for LDR instruction */
 		ARM_JUMP_REG_PARM (code, ARMREG_R1);	/* Call with LR pointing at parm */
@@ -565,7 +569,7 @@ mono_arch_create_specific_trampoline (gpointer arg1, MonoTrampolineType tramp_ty
 	if (code_len)
 		*code_len = code - buf;
 
-	return buf;
+	return CODE_ADDR(buf);
 }
 
 /*
@@ -607,7 +611,7 @@ mono_arch_get_unbox_trampoline (MonoMethod *m, gpointer addr)
 
 	mono_tramp_info_register (mono_tramp_info_create (NULL, start, code - start, NULL, unwind_ops), domain);
 
-	return start;
+	return CODE_ADDR(start);
 }
 
 gpointer
@@ -645,7 +649,7 @@ mono_arch_get_static_rgctx_trampoline (gpointer arg, gpointer addr)
 
 	mono_tramp_info_register (mono_tramp_info_create (NULL, start, code - start, NULL, unwind_ops), domain);
 
-	return start;
+	return CODE_ADDR(start);
 }
 
 /* Same as static rgctx trampoline, but clobbering ARMREG_IP, which is scratch */
@@ -675,7 +679,7 @@ mono_arch_get_ftnptr_arg_trampoline (gpointer arg, gpointer addr)
 
 	mono_tramp_info_register (mono_tramp_info_create (NULL, start, code - start, NULL, unwind_ops), domain);
 
-	return start;
+	return CODE_ADDR(start);
 }
 
 gpointer
@@ -775,7 +779,7 @@ mono_arch_create_rgctx_lazy_fetch_trampoline (guint32 slot, MonoTrampInfo **info
 		ARM_LOAD_PCOFF (code, ARMREG_R1);
 	} else {
 		int off;
-		guint32 *ldr = code;
+		guint32 *ldr = (guint32 *) code;
 
 		tramp = (guint8*)mono_arch_create_specific_trampoline (GUINT_TO_POINTER (slot), MONO_TRAMPOLINE_RGCTX_LAZY_FETCH, mono_get_root_domain (), &code_len);
 
@@ -797,7 +801,7 @@ mono_arch_create_rgctx_lazy_fetch_trampoline (guint32 slot, MonoTrampInfo **info
 	*info = mono_tramp_info_create (name, buf, code - buf, ji, unwind_ops);
 	g_free (name);
 
-	return buf;
+	return CODE_ADDR(buf);
 }
 
 gpointer
@@ -830,7 +834,7 @@ mono_arch_create_general_rgctx_lazy_fetch_trampoline (MonoTrampInfo **info, gboo
 
 	*info = mono_tramp_info_create ("rgctx_fetch_trampoline_general", buf, code - buf, ji, unwind_ops);
 
-	return buf;
+	return CODE_ADDR(buf);
 }
 
 guint8*
@@ -910,7 +914,7 @@ mono_arch_create_sdb_trampoline (gboolean single_step, MonoTrampInfo **info, gbo
 	const char *tramp_name = single_step ? "sdb_single_step_trampoline" : "sdb_breakpoint_trampoline";
 	*info = mono_tramp_info_create (tramp_name, buf, code - buf, ji, unwind_ops);
 
-	return buf;
+	return CODE_ADDR(buf);
 }
 
 /*
@@ -1008,12 +1012,12 @@ mono_arch_get_interp_to_native_trampoline (MonoTrampInfo **info)
 #else
 # define POPREG ((1 << ARMREG_R4)|(1 << ARMREG_R5)|(1 << ARMREG_R7)|(1 << ARMREG_R8)|(1 << ARMREG_PC))
 # define STMLDMREG ((1 << ARMREG_R0)|(1 << ARMREG_R1)|(1 << ARMREG_R2)|(1 << ARMREG_R3))
-	ARM_PUSH (code, ((1 << ARMREG_R4)|(1 << ARMREG_R5)|(1 << ARMREG_R7)|(1 << ARMREG_R8)|(1 << ARMREG_LR)));
-	ARM_MOV_REG_REG (code, ARMREG_R7, ARMREG_SP);
+	ARM_PUSH (code, ((1 << ARMREG_R4)|(1 << ARMREG_R5)|(1 << fp_reg)|(1 << ARMREG_R8)|(1 << ARMREG_LR)));
+	ARM_MOV_REG_REG (code, fp_reg, ARMREG_SP);
 	ARM_SUB_REG_IMM8 (code, ARMREG_SP, ARMREG_SP, 12);
-	ARM_SUB_REG_IMM8 (code, ARMREG_R4, ARMREG_R7, 4);
+	ARM_SUB_REG_IMM8 (code, ARMREG_R4, fp_reg, 4);
 	ARM_STR_IMM (code, ARMREG_R1, ARMREG_R4, 0);
-	ARM_SUB_REG_IMM8 (code, ARMREG_R4, ARMREG_R7, 4);
+	ARM_SUB_REG_IMM8 (code, ARMREG_R4, fp_reg, 4);
 	ARM_SUB_REG_IMM8 (code, ARMREG_R4, ARMREG_R4, 4);
 	ARM_STR_IMM (code, ARMREG_R0, ARMREG_R4, 0);
 	ARM_LDR_IMM (code, ARMREG_R3, ARMREG_R1, MONO_STRUCT_OFFSET (CallContext, stack_size));
@@ -1029,21 +1033,21 @@ mono_arch_get_interp_to_native_trampoline (MonoTrampInfo **info)
 	ARM_SUB_REG_IMM8 (code, ARMREG_R3, ARMREG_R3, 4);
 	ARM_B (code, -10);
 
-	ARM_SUB_REG_IMM8 (code, ARMREG_R4, ARMREG_R7, 4);
+	ARM_SUB_REG_IMM8 (code, ARMREG_R4, fp_reg, 4);
 	ARM_LDR_IMM (code, ARMREG_R5, ARMREG_R4, 0);
 	ARM_LDR_IMM (code, ARMREG_R0, ARMREG_R5, 0);
 	ARM_LDM (code, ARMREG_R5, ((1 << ARMREG_R0)|(1 << ARMREG_R1)|(1 << ARMREG_R2)|(1 << ARMREG_R3)));
 	ARM_FLDMD (code, ARM_VFP_D0, 8, ARMREG_R5);
-	ARM_SUB_REG_IMM8 (code, ARMREG_R4, ARMREG_R7, 4);
+	ARM_SUB_REG_IMM8 (code, ARMREG_R4, fp_reg, 4);
 	ARM_SUB_REG_IMM8 (code, ARMREG_R4, ARMREG_R4, 4);
 	ARM_LDR_IMM (code, ARMREG_R5, ARMREG_R4, 0);
 	ARM_BLX_REG (code, ARMREG_R5);
-	ARM_SUB_REG_IMM8 (code, ARMREG_R4, ARMREG_R7, 4);
+	ARM_SUB_REG_IMM8 (code, ARMREG_R4, fp_reg, 4);
 	ARM_LDR_IMM (code, ARMREG_R5, ARMREG_R4, 0);
 	ARM_STM (code, ARMREG_R5, ((1 << ARMREG_R0)|(1 << ARMREG_R1)|(1 << ARMREG_R2)|(1 << ARMREG_R3)));
 	ARM_FSTMD (code, ARM_VFP_D0, 8, ARMREG_R5);
-	ARM_MOV_REG_REG (code, ARMREG_SP, ARMREG_R7);
-	ARM_POP (code, ((1 << ARMREG_R4)|(1 << ARMREG_R5)|(1 << ARMREG_R7)|(1 << ARMREG_R8)|(1 << ARMREG_PC)));
+	ARM_MOV_REG_REG (code, ARMREG_SP, fp_reg);
+	ARM_POP (code, ((1 << ARMREG_R4)|(1 << ARMREG_R5)|(1 << fp_reg)|(1 << ARMREG_R8)|(1 << ARMREG_PC)));
 #endif
 	g_assert (code - start < buf_len);
 
@@ -1053,11 +1057,7 @@ mono_arch_get_interp_to_native_trampoline (MonoTrampInfo **info)
 	if (info)
 		*info = mono_tramp_info_create ("interp_to_native_trampoline", start, code - start, ji, unwind_ops);
 
-#ifdef __THUMB__
-	start = (gpointer) ((uintptr_t) start | 0x1);
-#endif
-
-	return start;
+	return CODE_ADDR(start);
 #else
 	g_assert_not_reached ();
 	return NULL;
@@ -1161,11 +1161,7 @@ mono_arch_get_native_to_interp_trampoline (MonoTrampInfo **info)
 	if (info)
 		*info = mono_tramp_info_create ("native_to_interp_trampoline", start, code - start, ji, unwind_ops);
 
-#ifdef __THUMB__
-	start = (gpointer) ((uintptr_t) start | 0x1);
-#endif
-
-	return start;
+	return CODE_ADDR(start);
 #else
 	g_assert_not_reached ();
 	return NULL;
@@ -1286,7 +1282,7 @@ mono_arch_get_call_target (guint8 *code)
 {
 	guint32 ins = ((guint32*)code) [-1];
 	gint32 disp;
-	guint32 *target;
+	guint8 *target;
 
 #ifndef __THUMB__
 	/* Should be a 'bl' or a 'b' */
@@ -1299,6 +1295,7 @@ mono_arch_get_call_target (guint8 *code)
 		return NULL;
 	}
 #else
+	ins &= ~1L;
 	if (((ins & BL_TEMPLATE) == BL_TEMPLATE) || 
 	    ((ins & BR_TEMPLATE) == BR_TEMPLATE)) {
 		brl32_t *branch = (brl32_t *) (code - 4);
@@ -1306,7 +1303,7 @@ mono_arch_get_call_target (guint8 *code)
 		disp = (((branch->offhi << 11) | branch->offlo) << 1);
 		if (branch->sign)
 			disp = -disp;
-		target = (guint8 *) (code + disp);
+		target = code + disp;
 		return target;
 	} else {
 		return NULL;
@@ -1422,9 +1419,9 @@ mono_arch_get_gsharedvt_arg_trampoline (MonoDomain *domain, gpointer arg, gpoint
 
 	/* Similar to the specialized trampoline code */
 	ARM_PUSH (code, (1 << ARMREG_R0) | (1 << ARMREG_R1) | (1 << ARMREG_R2) | (1 << ARMREG_R3) | (1 << ARMREG_LR));
-	ldr[0] = code;
+	ldr[0] = (guint32 *)code;
 	code += 4;				/* Spot for LDR of addr instruction */
-	ldr[1] = code;
+	ldr[1] = (guint32 *)code;
 	code += 4;				/* Spot for LDR of arg instruction */
 	/* arg is passed in LR */
 	ARM_JUMP_REG_PARM (code, ARMREG_PC);

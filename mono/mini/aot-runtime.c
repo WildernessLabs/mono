@@ -78,6 +78,14 @@
 #define ENABLE_AOT_CACHE
 #endif
 
+#ifndef __THUMB__
+# define CODE_ADDR(x) (x)
+# define CODE_PTR(x) (x)
+#else
+# define CODE_ADDR(x) (typeof(x))((uintptr_t) x | 0x1)
+# define CODE_PTR(x) (typeof(x))((uintptr_t) x & ~1L)
+#endif
+
 /* Number of got entries shared between the JIT and LLVM GOT */
 #define N_COMMON_GOT_ENTRIES 10
 
@@ -1964,6 +1972,8 @@ get_call_table_entry (void *table, int index, int entry_size)
 		return (char*)ins_addr + (offset * 4) + 8;
 	}
 # else
+	char *target;
+	ins &= ~1L;
 	g_assert (entry_size == 4);
 	if ((ins & BL_TEMPLATE) == BL_TEMPLATE) {
 		brl32_t *bl_s;
@@ -1974,7 +1984,8 @@ get_call_table_entry (void *table, int index, int entry_size)
 			offset |= 0xff000000;
 		offset |= (!(bl_s->i2 ^ bl_s->sign) << 22) | (!(bl_s->i1 ^ bl_s->sign) << 23);
 		offset += sizeof(*bl_s);
-		return (char *)ins_addr + offset;
+		target = (char *) ((uintptr_t)ins_addr + offset);
+		return CODE_ADDR(target);
 	}
         return NULL;
 # endif
@@ -2379,7 +2390,7 @@ load_aot_module (MonoAssemblyLoadContext *alc, MonoAssembly *assembly, gpointer 
 		if (!addr && amodule->info.method_addresses) {
 			addr = get_call_table_entry (amodule->info.method_addresses, i, amodule->info.call_table_entry_size);
 			g_assert (addr);
-			if (addr == amodule->info.method_addresses)
+			if (CODE_PTR(addr) == amodule->info.method_addresses)
 				addr = NULL;
 		}
 		if (addr == NULL)
@@ -4216,7 +4227,7 @@ load_method (MonoDomain *domain, MonoAotModule *amodule, MonoImage *image, MonoM
 	}
 
 	if ((amodule->methods_loaded [method_index / 32] >> (method_index % 32)) & 0x1)
-		return code;
+		return CODE_ADDR(code);
 
 	if (mini_debug_options.aot_skip_set && !(method && method->wrapper_type)) {
 		gint32 methods_aot = mono_atomic_load_i32 (&mono_jit_stats.methods_aot);
@@ -4334,7 +4345,7 @@ load_method (MonoDomain *domain, MonoAotModule *amodule, MonoImage *image, MonoM
 		MONO_PROFILER_RAISE (jit_done, (method, jinfo));
 	}
 
-	return code;
+	return CODE_ADDR(code);
 
  cleanup:
 	if (jinfo)
@@ -5278,10 +5289,10 @@ mono_create_ftnptr_malloc (guint8 *code)
 	return ftnptr;
 	return code;
 #else
-# ifdef __THUMB__
+# ifdef __XHUMB__
 	code = (guint8 *) ((uintptr_t) code | 0x1);
 # endif
-	return code;
+	return CODE_ADDR(code);
 #endif
 }
 
@@ -5426,10 +5437,10 @@ load_function_full (MonoAotModule *amodule, const char *name, MonoTrampInfo **ou
 		mono_mempool_destroy (mp);
 	}
 
-#ifdef __THUMB__
+#ifdef __XHUMB__
 	code = (gpointer) ((uintptr_t) code | 0x1);
 #endif
-	return code;
+	return CODE_ADDR(code);
 }
 
 static gpointer

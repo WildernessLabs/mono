@@ -1152,7 +1152,8 @@ arch_init (MonoAotCompile *acfg)
 		g_string_append (acfg->llc_args, " -mattr=+soft-float");
 #endif
 	}
-	if (acfg->aot_opts.mtriple && strstr (acfg->aot_opts.mtriple, "thumb"))
+	if (((acfg->aot_opts.mtriple) && (strstr (acfg->aot_opts.mtriple, "thumb"))) ||
+	    ((acfg->aot_opts.llvm_opts) && (strstr (acfg->aot_opts.llvm_opts, "thumb"))))
 		acfg->thumb_mixed = TRUE;
 
 	if (acfg->aot_opts.mtriple)
@@ -1882,6 +1883,7 @@ arch_emit_llvm_plt_entry (MonoAotCompile *acfg, const char *got_symbol, int offs
 	fprintf (acfg->fp, "ldr ip, [ip, #0]\n");
 	fprintf (acfg->fp, "bx ip\n");
 #endif
+# ifndef __THUMB__
 	emit_set_thumb_mode (acfg);
 	fprintf (acfg->fp, ".4byte 0xc008f8df\n");
 	fprintf (acfg->fp, ".2byte 0x44fc\n");
@@ -1891,6 +1893,14 @@ arch_emit_llvm_plt_entry (MonoAotCompile *acfg, const char *got_symbol, int offs
 	emit_int32 (acfg, info_offset);
 	emit_unset_mode (acfg);
 	emit_set_arm_mode (acfg);
+# else
+	fprintf (acfg->fp, "\tldr.w\tip,0f\n");
+	fprintf (acfg->fp, "\tadd\tip, pc\n");
+	fprintf (acfg->fp, "\tldr.w\tpc, [ip]\n");
+	fprintf (acfg->fp, "\tnop\n0:\n");
+	emit_symbol_diff (acfg, got_symbol, ".", offset + 4);
+	emit_int32 (acfg, info_offset);
+#endif
 #else
 	g_assert_not_reached ();
 #endif
@@ -12274,10 +12284,6 @@ compile_asm (MonoAotCompile *acfg)
 	}
 #endif
 
-#ifdef __NuttX__
-	g_string_append_printf (command, " --start-group libsupc++.a libuc.a libfs.a libsched.a --end-group");
-#endif
-
 	aot_printf (acfg, "Executing the native linker: %s\n", command);
 	if (execute_system (command) != 0) {
 		g_free (tmp_outfile_name);
@@ -12300,7 +12306,7 @@ compile_asm (MonoAotCompile *acfg)
 	 * gas generates 'mapping symbols' each time code and data is mixed, which 
 	 * happens a lot in emit_and_reloc_code (), so we need to get rid of them.
 	 */
-	command = g_strdup_printf ("\"%s"STRIP_NAME"\" --strip-symbol=\\$a --strip-symbol=\\$d --strip-symbol=\\$t %s", tool_prefix, wrap_path(tmp_outfile_name));
+	command = g_strdup_printf ("\"%s"STRIP_NAME"\" -w --strip-symbol=\\$a* --strip-symbol=\\$d* --strip-symbol=\\$t* %s", tool_prefix, wrap_path(tmp_outfile_name));
 	aot_printf (acfg, "Stripping the binary: %s\n", command);
 	if (execute_system (command) != 0) {
 		g_free (tmp_outfile_name);
