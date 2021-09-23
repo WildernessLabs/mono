@@ -34,19 +34,9 @@
 #include "mono/utils/mono-tls-inline.h"
 
 #ifndef __THUMB__
-# define ARM_CALL_REG(p, r) 					\
-	do { 							\
-		ARM_MOV_REG_REG (p, ARMREG_LR, ARMREG_PC);	\
-		p = emit_bx (p, r);				\
-	} while (0)
-# define ARM_CALL_REG_PARM(p, r) 	ARM_CALL_REG(p, r)
-# define ARM_JUMP_REG_PARM(p, r)	p = emit_bx (p, r)
 # define CODE_ADDR(x) (x)
 # define CODE_PTR(x) (x)
 #else
-# define ARM_CALL_REG(p,r)	ARM_BLX_REG(p, r)
-# define ARM_CALL_REG_PARM(p,r)	ARM_BLX_REG_ALIGN (p, r)
-# define ARM_JUMP_REG_PARM(p,r)	ARM_BX_ALIGN (p, r)
 # define CODE_ADDR(x) (typeof(x))((uintptr_t) x | 0x1)
 # define CODE_PTR(x) (typeof(x))((uintptr_t) x & ~1L)
 #endif
@@ -546,18 +536,7 @@ mono_arch_create_specific_trampoline (gpointer arg1, MonoTrampolineType tramp_ty
 		constants [1] = GPOINTER_TO_UINT (arg1);
 		code += 8;
 	} else {
-		int off;
-		guint32 *ldr = (guint32 *) code;
-
-		code += 4;				/* Spot for LDR instruction */
-		ARM_JUMP_REG_PARM (code, ARMREG_R1);	/* Call with LR pointing at parm */
-
-		constants = (guint32*)code;
-		constants [0] = GPOINTER_TO_UINT (arg1);
-		constants [1] = GPOINTER_TO_UINT (tramp);
-		code += 8;
-		off = (uintptr_t) &constants[1] - (uintptr_t) ldr - 4;
-		ARM_LDR_IMM (ldr, ARMREG_R1, ARMREG_PC, off);
+		ARM_JUMP_REG_PARM2 (code, ARMREG_R1, arg1, tramp);	/* Call with LR pointing at parm */
 	}
 
 	/* Flush instruction cache, since we've generated code */
@@ -588,21 +567,14 @@ mono_arch_get_unbox_trampoline (MonoMethod *m, gpointer addr)
 	MonoDomain *domain = mono_domain_get ();
 	GSList *unwind_ops;
 	guint32 size = 16;
-	guint8 *ldr;
-	int off;
 
 	start = code = mono_domain_code_reserve (domain, size);
 
 	unwind_ops = mono_arch_get_cie_program ();
 
 	ARM_ADD_REG_IMM8 (code, ARMREG_R0, ARMREG_R0, MONO_ABI_SIZEOF (MonoObject));
-	ldr = code;		/* LDR ARMREG_IP spot */
-	code += 4;	
-	ARM_JUMP_REG_PARM (code, ARMREG_IP);
-	*(guint32*)code = (guint32)(gsize)addr;
-	off = (uintptr_t) code - (uintptr_t) ldr - 4;
-	ARM_LDR_IMM (ldr, ARMREG_IP, ARMREG_PC, off);
-	code += 4;
+	ARM_JUMP_REG_PARM (code, ARMREG_IP, addr);
+
 	mono_arch_flush_icache (start, code - start);
 	MONO_PROFILER_RAISE (jit_code_buffer, (start, code - start, MONO_PROFILER_CODE_BUFFER_UNBOX_TRAMPOLINE, m));
 	g_assert ((code - start) <= size);
@@ -620,19 +592,19 @@ mono_arch_get_static_rgctx_trampoline (gpointer arg, gpointer addr)
 	guint8 *code, *start;
 	GSList *unwind_ops;
 	int buf_len = 32;
-	guint8 *ldr[2];
-	int off;
 	MonoDomain *domain = mono_domain_get ();
 
 	start = code = mono_domain_code_reserve (domain, buf_len);
 
 	unwind_ops = mono_arch_get_cie_program ();
 
+	ARM_JUMP_REG_PARM2 (code, MONO_ARCH_RGCTX_REG, arg, addr);
+#if 0
 	ldr[0] = code;
 	code += 4;	/* LDR arg */
 	ldr[1] = code;  /* LDR addr */
 	code += 4;
-	ARM_JUMP_REG (code, ARMREG_IP, thumb_supported);
+	ARM_JUMP_REG (code, ARMREG_IP, mono_arm_thumb_supported());
 	*(guint32*)code = (guint32)(gsize)arg;
 	off = (uintptr_t) code - (uintptr_t) ldr[0] - 4;
 	ARM_LDR_IMM (ldr[0], MONO_ARCH_RGCTX_REG, ARMREG_PC, off);
@@ -641,6 +613,7 @@ mono_arch_get_static_rgctx_trampoline (gpointer arg, gpointer addr)
 	off = (uintptr_t) code - (uintptr_t) ldr[1] - 4;
 	ARM_LDR_IMM (ldr[1], ARMREG_IP, ARMREG_PC, off);
 	code += 4;
+#endif
 
 	g_assert ((code - start) <= buf_len);
 
@@ -778,18 +751,10 @@ mono_arch_create_rgctx_lazy_fetch_trampoline (guint32 slot, MonoTrampInfo **info
 		code += 4;
 		ARM_LOAD_PCOFF (code, ARMREG_R1);
 	} else {
-		int off;
-		guint32 *ldr = (guint32 *) code;
-
 		tramp = (guint8*)mono_arch_create_specific_trampoline (GUINT_TO_POINTER (slot), MONO_TRAMPOLINE_RGCTX_LAZY_FETCH, mono_get_root_domain (), &code_len);
 
 		/* Jump to the actual trampoline */
-		code += 4;				/* Spot for LDR instruction */
-		ARM_JUMP_REG_PARM (code, ARMREG_R1);
-		*(gpointer*)code = tramp;
-		off = (uintptr_t) code - (uintptr_t) ldr - 4;
-		code += 4;
-		ARM_LDR_IMM (ldr, ARMREG_R1, ARMREG_PC, off);
+		ARM_JUMP_REG_PARM (code, ARMREG_R1, tramp);
 	}
 
 	mono_arch_flush_icache (buf, code - buf);
@@ -1408,10 +1373,6 @@ mono_arch_get_gsharedvt_arg_trampoline (MonoDomain *domain, gpointer arg, gpoint
 {
 	guint8 *code, *buf;
 	int buf_len;
-	gpointer *constants;
-	int off;
-	guint32 *ldr[2];
-
 
 	buf_len = 24;
 
@@ -1419,20 +1380,8 @@ mono_arch_get_gsharedvt_arg_trampoline (MonoDomain *domain, gpointer arg, gpoint
 
 	/* Similar to the specialized trampoline code */
 	ARM_PUSH (code, (1 << ARMREG_R0) | (1 << ARMREG_R1) | (1 << ARMREG_R2) | (1 << ARMREG_R3) | (1 << ARMREG_LR));
-	ldr[0] = (guint32 *)code;
-	code += 4;				/* Spot for LDR of addr instruction */
-	ldr[1] = (guint32 *)code;
-	code += 4;				/* Spot for LDR of arg instruction */
 	/* arg is passed in LR */
-	ARM_JUMP_REG_PARM (code, ARMREG_PC);
-	constants = (gpointer*)code;
-	constants [0] = arg;
-	constants [1] = addr;
-	code += 2 * sizeof (gpointer);
-	off = (uintptr_t) &constants[1] - (uintptr_t) ldr[0] - 4;
-	ARM_LDR_IMM (ldr, ARMREG_R1, ARMREG_PC, off);
-	off = (uintptr_t) &constants[0] - (uintptr_t) ldr[1] - 4;
-	ARM_LDR_IMM (ldr, ARMREG_LR, ARMREG_PC, off);
+	ARM_CALL_REG_PARM2 (code, ARMREG_IP, arg, addr);
 
 	g_assert ((code - buf) <= buf_len);
 

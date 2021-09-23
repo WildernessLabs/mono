@@ -96,7 +96,7 @@ typedef enum {
  *  ARM_BX (code, ARMREG_IP)
  *  ARM_NOP (code)
  */
-#define ARMDISP_VSWITCH	16
+#define ARMDISP_SWITCH	16
 
 typedef enum {
 	ARMCOND_EQ = 0x0,          /* Equal; Z = 1 */
@@ -891,24 +891,6 @@ typedef struct {
 
 #define OP_DPM32	0x0000f000
 
-/*
- * f06f 4c00 - 128,8 - 01000 1000000
- * f       0       6       f       4       c       0       0
- * 1 1 1 1 0 0 0 0 0 1 1 0 1 1 1 1 0 1 0 0 1 1 0 0 0 0 0 0 0 0 0 0 
- * . . . . . i . . . . . S . . . . . 3 3 3 d d d d 8 8 8 8 8 8 8 8
- *
- * f06f 4c40 - 192,8 - 01000 1100000
- * f       0       6       f       4       c       4       0
- * 1 1 1 1 0 0 0 0 0 1 1 0 1 1 1 1 0 1 0 0 1 1 0 0 0 1 0 0 0 0 0 0 
- * . . . . . i . . . . . S . . . . . 3 3 3 d d d d 8 8 8 8 8 8 8 8
- *
- * f06f 4c80 -  64,8 - 01000 0100000
- * f       0       6       f       4       c       8       0
- * 1 1 1 1 0 0 0 0 0 1 1 0 1 1 1 1 0 1 0 0 1 1 0 0 1 0 0 0 0 0 0 0 
- * . . . . . i . . . . . S . . . . . 3 3 3 d d d d 8 8 8 8 8 8 8 8
- *
- */
-
 static __inline__ void
 arm_dpm32(void **code, int rd, int rn, int imm, int cond, int opcode)
 {
@@ -941,25 +923,6 @@ arm_dpm32_rot(void **code, int rd, int rn, int imm, int rot, int cond, int opcod
 	op->imm8 = imm;
 	op->imm3 = (imm >> 8);
 	*code = (void *)((uintptr_t) *code + sizeof(*op));
-#if 0
-	uint32_t *p = *(uint32_t **) code;
-	dpm32_t *op = *(dpm32_t **) code;
-	*p = OP_DPM32;
-	op->rn = rn;
-	op->rd = rd;
-	op->cond = cond;
-	op->op = opcode;
-	op->imm1 = rot >> 4;
-	if (rot != 0) {
-		imm &= 0x7f;
-		if (imm != 0)
-			while ((imm & 0x80) == 0) imm <<= 1;
-		op->imm8 = ((rot & 1) << 7) | imm;
-	} else
-		op->imm8 = imm;
-	op->imm3 = (rot >> 1) & 0x7;
-	*code = (void *)((uintptr_t) *code + sizeof(*op));
-#endif
 }
 			
 /**
@@ -1083,18 +1046,6 @@ typedef struct {
 } dpc32_t;
 
 #define OP_DPC32	0x0000ea00
-
-/*
- * ea80 0701
- *
- * E       A       8       0       0       7       0       1
- * 1 1 1 0 1 0 1 0 1 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 0 0 0 0 0 0 0 1
- * . . . . . . . O O O O S n n n n z i i i d d d d I I T T m m m m 
- *
- * E       A       0       0       0       7       0       1
- * 1 1 1 0 1 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 1 0 0 0 0 0 0 0 1
- * . . . . . . . O O O O S n n n n z i i i d d d d I I T T m m m m 
- */
 
 static __inline__ void
 arm_dpc32(void **code, int rd, int rn, int rm, int imm, int cond, int opcode, int optype)
@@ -1489,21 +1440,6 @@ typedef struct {
 
 #define OP_LSRN32	0x0000f800
 
-/*
- * f8d2 901c 
- *
- * F       8       D       2       9       0       1       C
- * 1 1 1 1 1 0 0 0 1 1 0 1 0 0 1 0 1 0 0 1 0 0 0 0 0 0 0 1 1 1 0 0 
- * . . . . . . . S U z z L n n n n t t t t s p v i i i i i i i i i 
- *
- * f852 9c1c
- *
- * F       8       5       2       9       C       1       C
- * 1 1 1 1 1 0 0 0 0 1 0 1 0 0 1 0 1 0 0 1 1 1 0 0 0 0 0 1 1 1 0 0 
- * . . . . . . . S U z z L n n n n t t t t s p v i i i i i i i i i 
- *
- *
- */
 static __inline__ void
 arm_lsrn32(void **code, int rt, int rn, int ls, int size,
 	   int imm, int sign, int idx, int priv)
@@ -1842,6 +1778,7 @@ arm_fabs(void **code, int vrd, int vrm, int size)
 	arm_fdp(code, 0, opc1, opc2, opc3, opc4, opr1, opr2, size);
 }
 
+#define ARM_ABSS(p, vrd, vrn)		arm_fabs((void **)&p, vrd, vrn, 0)
 #define ARM_ABSD(p, vrd, vrn)		arm_fabs((void **)&p, vrd, vrn, 1)
 
 /**
@@ -2208,6 +2145,43 @@ arm_fneg(void **code, int vrd, int vrm, int size)
 
 #define ARM_NEGS(p, rd, rm)	arm_fneg((void **) &p, rd, rm, 0)
 #define ARM_NEGD(p, rd, rm)	arm_fneg((void **) &p, rd, rm, 1)
+
+/**
+ * Floating Point - VSQRT
+ */
+
+/* 
+ * 1 1 1 T 1 1 1 0 a a a a b b b b C C C C 1 0 1 S d d E 0 f f f f
+ * T = 0; opc1 = 1||Vd[1]||11; opc2 = 0001; opr1=Vd; S=size; opc3=11 opr2=Vm[0] opc4=Vm
+ * 
+ */
+
+static __inline__ void
+arm_fsqrt(void **code, int vrd, int vrm, int size)
+{
+	int opc1, opc2, opc3, opc4;
+	int opr1, opr2;
+
+	opc2 = 1;
+	opc3 = 3;
+	if (size == 1) {
+		vrd >>= 1; vrm >>= 1;
+		opc1 = ((vrd >> 4) << 2);
+		opr1 = vrd & 0xf;
+		opr2 = ((vrm >> 4) << 1);
+		opc4 = vrm & 0xf; 
+	} else {
+		opc1 = ((vrd & 0x1) << 2);
+		opr1 = vrd >> 1;
+		opr2 = vrm & 0x1;
+		opc4 = vrm >> 1;
+	}
+	opc1 |= 0xb;
+	arm_fdp(code, 0, opc1, opc2, opc3, opc4, opr1, opr2, size);
+}
+
+#define ARM_SQRTS(p, vrd, vrn)		arm_fsqrt((void **)&p, vrd, vrn, 0)
+#define ARM_SQRTD(p, vrd, vrn)		arm_fsqrt((void **)&p, vrd, vrn, 1)
 
 /**
  * Floating Point - VMOV - between two ARM core registers and a doubleword register
@@ -4172,6 +4146,38 @@ arm_umull(void **code, int rdhi, int rdlo, int rm, int rs)
 	} while (0)
 
 #define ARM_JUMP_REG(p, r, t)		ARM_BX(p, r)
+
+#define ARM_CALL_REG(p,r)	ARM_BLX_REG(p, r)
+#define ARM_CALL_REG_PARM(p,r)	ARM_BLX_REG_ALIGN (p, r)
+
+#define ARM_JUMP_REG_PARM(p, r, addr)			\
+	do {						\
+		ARM_LDR_IMM(p, r, ARMREG_PC, 6);	\
+		ARM_BX(p, r);				\
+		*(guint32 *)p = (guint32) addr;		\
+		p += 4;					\
+	} while (0)
+
+#define ARM_JUMP_REG_PARM2(p, r1, arg, addr)		\
+	do {						\
+		ARM_LDR_IMM(p, r1, ARMREG_PC, 4);	\
+		ARM_LDR_IMM(p, ARMREG_PC, ARMREG_PC, 4);\
+		*(guint32 *)p = (guint32) arg;		\
+		p += 4;					\
+		*(guint32 *)p = (guint32) addr;		\
+		p += 4;					\
+	} while (0)
+
+#define ARM_CALL_REG_PARM2(p, r1, arg, addr)				\
+	do {								\
+		ARM_LDR_IMM(p, r1, ARMREG_PC, 2 * sizeof(gpointer));	\
+		ARM_LDR_IMM(p, ARMREG_LR, ARMREG_PC, ARMDISP_LDRPC);	\
+		p = emit_bx(p, r1);					\
+		*(guint32 *)p = (guint32) arg;				\
+		p += 4;							\
+		*(guint32 *)p = (guint32) addr;				\
+		p += 4;							\
+	} while (0)
 
 #define ARM_JUMP_OFFSET(p, r, o) 		\
 	do {					\

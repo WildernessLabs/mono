@@ -42,6 +42,8 @@
 #error "ARM_FPU_NONE is defined while one of ARM_FPU_VFP/ARM_FPU_VFP_HARD is defined"
 #endif
 
+static GENERATE_TRY_GET_CLASS_WITH_CACHE (math, "System", "Math")
+
 /*
  * IS_SOFT_FLOAT: Is full software floating point used?
  * IS_HARD_FLOAT: Is full hardware floating point used?
@@ -680,7 +682,7 @@ get_delegate_invoke_impl (MonoTrampInfo **info, gboolean has_target, gboolean pa
 
 	MONO_PROFILER_RAISE (jit_code_buffer, (start, code - start, MONO_PROFILER_CODE_BUFFER_DELEGATE_INVOKE, NULL));
 
-	return start;
+	return ARM_CALL_TARGET(start);
 }
 
 /*
@@ -5820,6 +5822,12 @@ mono_arch_output_basic_block (MonoCompile *cfg, MonoBasicBlock *bb)
 			/* emulated */
 			g_assert_not_reached ();
 			break;
+		case OP_SQRT:
+			ARM_SQRTD (code, ins->dreg, ins->sreg1);
+			break;		
+		case OP_ABS:
+			ARM_ABSD (code, ins->dreg, ins->sreg1);
+			break;		
 		case OP_FCOMPARE:
 			if (IS_VFP) {
 				ARM_CMPD (code, ins->sreg1, ins->sreg2);
@@ -6160,7 +6168,7 @@ mono_arch_patch_code_new (MonoCompile *cfg, MonoDomain *domain, guint8 *code, Mo
 
 	switch (ji->type) {
 	case MONO_PATCH_INFO_SWITCH: {
-		gpointer *jt = (gpointer*)(ip + ARMDISP_VSWITCH);
+		gpointer *jt = (gpointer*)(ip + ARMDISP_SWITCH);
 		int i;
 		/* jt is the inlined jump table, n instructions after ip
 		 * In the normal case we store the absolute addresses,
@@ -6928,14 +6936,40 @@ mono_arch_finish_init (void)
 {
 }
 
+#ifndef DISABLE_JIT
+
+MonoInst*
+mono_arch_emit_inst_for_method (MonoCompile *cfg, MonoMethod *cmethod, MonoMethodSignature *fsig, MonoInst **args)
+{
+	MonoInst *ins = NULL;
+	int opcode = 0;
+
+	if (cmethod->klass == mono_class_try_get_math_class ()) {
+		if (strcmp (cmethod->name, "Sqrt") == 0) {
+			opcode = OP_SQRT;
+		} else if (strcmp (cmethod->name, "Abs") == 0 && fsig->params [0]->type == MONO_TYPE_R8)  {
+			opcode = OP_ABS;
+		}
+		
+		if (opcode && fsig->param_count == 1) {
+			MONO_INST_NEW (cfg, ins, opcode);
+			ins->type = STACK_R8;
+			ins->dreg = mono_alloc_freg (cfg);
+			ins->sreg1 = args [0]->dreg;
+			MONO_ADD_INS (cfg->cbb, ins);
+		}
+	}
+	return ins;
+}
+
+#else
+
 MonoInst*
 mono_arch_emit_inst_for_method (MonoCompile *cfg, MonoMethod *cmethod, MonoMethodSignature *fsig, MonoInst **args)
 {
 	/* FIXME: */
 	return NULL;
 }
-
-#ifndef DISABLE_JIT
 
 #endif
 

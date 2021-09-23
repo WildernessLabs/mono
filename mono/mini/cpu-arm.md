@@ -250,12 +250,13 @@ r4_cle: dest:y src1:f src2:f len:24
 setfret: src1:f len:12
 aotconst: dest:i len:20
 objc_get_selector: dest:i len:32
-sqrt: dest:f src1:f len:4
+abs: dest:f src1:f len:4
 adc: dest:i src1:i src2:i len:4
 addcc: dest:i src1:i src2:i len:4
 subcc: dest:i src1:i src2:i len:4
 adc_imm: dest:i src1:i len:12
 addcc_imm: dest:i src1:i len:12
+sqrt: dest:f src1:f len:4
 subcc_imm: dest:i src1:i len:12
 sbb: dest:i src1:i src2:i len:4
 sbb_imm: dest:i src1:i len:12

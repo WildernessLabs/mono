@@ -102,6 +102,14 @@
 #include "mono/metadata/icall-signatures.h"
 #include "mono/utils/mono-tls-inline.h"
 
+#ifndef __THUMB__
+# define CODE_ADDR(p) p
+# define CODE_PTR(p) p
+#else
+# define CODE_ADDR(x) (typeof(x))((uintptr_t) x | 0x1)
+# define CODE_PTR(x) (typeof(x))((uintptr_t) x & ~1L)
+#endif
+
 static guint32 default_opt = 0;
 static gboolean default_opt_set = FALSE;
 
@@ -2358,10 +2366,7 @@ lookup_start:
 			if (!mono_runtime_class_init_full (vtable, error))
 				return NULL;
 			p = mono_create_ftnptr (target_domain, info->code_start);
-#ifdef __THUMB__
-			p = (gpointer) ((uintptr_t) p | 0x1);
-#endif
-			return p;
+			return CODE_ADDR(p);
 
 		}
 	}
@@ -2491,10 +2496,7 @@ lookup_start:
 	}
 
 	// FIXME p or callinfo->wrapper or does not matter?
-#ifdef __THUMB__
-	p = (gpointer) ((uintptr_t) p | 0x1);
-#endif
-	return p;
+	return CODE_ADDR(p);
 }
 
 gpointer

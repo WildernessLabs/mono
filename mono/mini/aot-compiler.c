@@ -10039,10 +10039,6 @@ emit_code (MonoAotCompile *acfg)
 	emit_alignment (acfg, 8);
 	emit_label (acfg, symbol);
 	emit_pointer (acfg, acfg->got_symbol);
-#elif defined(__THUMB__)
-	fprintf (acfg->fp, "\t.arch armv7e-m\n");
-	fprintf (acfg->fp, "\t.syntax unified\n");
-	fprintf (acfg->fp, "\t.thumb\n");
 #endif
 
 	/* 
