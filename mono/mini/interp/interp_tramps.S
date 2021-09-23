@@ -1,3 +1,5 @@
+#include <config.h>
+#ifndef MONO_CROSS_COMPILE
 .thumb
 
 .globl _interp_to_native_trampoline
@@ -202,3 +204,9 @@ ldr     r5, [r5, #12]
 mov     r12, r15
 pop     {r5}
 bx      r12
+#else
+.globl _interp_to_native_trampoline
+_interp_to_native_trampoline:
+.globl _native_to_interp_trampoline
+_native_to_interp_trampoline:
+#endif

@@ -29,4 +29,12 @@ mono_llvm_cpp_catch_exception (MonoLLVMInvokeCallback cb, gpointer arg, gboolean
 	}
 }
 
+  void _ZN9__gnu_cxx27__verbose_terminate_handler()
+  {
+     abort();
+  }
+  void _ZN9__gnu_cxx27__verbose_terminate_handlerEv()
+  {
+     abort();
+  }
 }
